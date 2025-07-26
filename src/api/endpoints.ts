@@ -29,6 +29,7 @@ export const API_ENDPOINTS = {
     CREATE: '/api/v1/add/alias',
     UPDATE: '/api/v1/edit/alias',
     DELETE: '/api/v1/delete/alias',
+    GET: '/api/v1/get/alias',
   },
 
   // User endpoints
@@ -120,6 +121,7 @@ export const API_ENDPOINTS = {
     CREATE: '/api/v1/add/syncjob',
     UPDATE: '/api/v1/edit/syncjob',
     DELETE: '/api/v1/delete/syncjob',
+    GET: '/api/v1/get/syncjob',
   },
 
   // Queue endpoints (mail queue)
@@ -127,6 +129,9 @@ export const API_ENDPOINTS = {
     LIST: '/api/v1/get/mailq',
     FLUSH: '/api/v1/edit/mailq',
     DELETE: '/api/v1/delete/mailq',
+    GET: '/api/v1/get/mailq',
+    HOLD: '/api/v1/edit/mailq',
+    RELEASE: '/api/v1/edit/mailq',
   },
 };
 
@@ -161,7 +166,14 @@ export function buildMailboxEndpoint(action: APIAction): string {
   }
 }
 
-export function buildAliasEndpoint(action: APIAction): string {
+export function buildAliasEndpoint(
+  action:
+    | APIAction.LIST
+    | APIAction.CREATE
+    | APIAction.UPDATE
+    | APIAction.DELETE
+    | APIAction.GET
+): string {
   switch (action) {
     case APIAction.LIST:
       return API_ENDPOINTS.ALIASES.LIST;
@@ -171,12 +183,21 @@ export function buildAliasEndpoint(action: APIAction): string {
       return API_ENDPOINTS.ALIASES.UPDATE;
     case APIAction.DELETE:
       return API_ENDPOINTS.ALIASES.DELETE;
+    case APIAction.GET:
+      return API_ENDPOINTS.ALIASES.GET;
     default:
       throw new Error(`Unknown alias action: ${action}`);
   }
 }
 
-export function buildUserEndpoint(action: APIAction): string {
+export function buildUserEndpoint(
+  action:
+    | APIAction.LIST
+    | APIAction.CREATE
+    | APIAction.UPDATE
+    | APIAction.DELETE
+    | APIAction.GET
+): string {
   switch (action) {
     case APIAction.LIST:
       return API_ENDPOINTS.USERS.LIST;
@@ -191,7 +212,13 @@ export function buildUserEndpoint(action: APIAction): string {
   }
 }
 
-export function buildDKIMEndpoint(action: APIAction): string {
+export function buildDKIMEndpoint(
+  action:
+    | APIAction.LIST
+    | APIAction.CREATE
+    | APIAction.UPDATE
+    | APIAction.DELETE
+): string {
   switch (action) {
     case APIAction.LIST:
       return API_ENDPOINTS.DKIM.LIST;
@@ -206,7 +233,9 @@ export function buildDKIMEndpoint(action: APIAction): string {
   }
 }
 
-export function buildQuarantineEndpoint(action: APIAction): string {
+export function buildQuarantineEndpoint(
+  action: APIAction.LIST | APIAction.UPDATE
+): string {
   switch (action) {
     case APIAction.LIST:
       return API_ENDPOINTS.QUARANTINE.LIST;
@@ -217,7 +246,13 @@ export function buildQuarantineEndpoint(action: APIAction): string {
   }
 }
 
-export function buildTLSPolicyEndpoint(action: APIAction): string {
+export function buildTLSPolicyEndpoint(
+  action:
+    | APIAction.LIST
+    | APIAction.CREATE
+    | APIAction.UPDATE
+    | APIAction.DELETE
+): string {
   switch (action) {
     case APIAction.LIST:
       return API_ENDPOINTS.TLS_POLICY.LIST;
@@ -232,7 +267,13 @@ export function buildTLSPolicyEndpoint(action: APIAction): string {
   }
 }
 
-export function buildOAuth2Endpoint(action: APIAction): string {
+export function buildOAuth2Endpoint(
+  action:
+    | APIAction.LIST
+    | APIAction.CREATE
+    | APIAction.UPDATE
+    | APIAction.DELETE
+): string {
   switch (action) {
     case APIAction.LIST:
       return API_ENDPOINTS.OAUTH2.LIST;
@@ -247,7 +288,9 @@ export function buildOAuth2Endpoint(action: APIAction): string {
   }
 }
 
-export function buildAppPasswdEndpoint(action: APIAction): string {
+export function buildAppPasswdEndpoint(
+  action: APIAction.LIST | APIAction.CREATE | APIAction.DELETE
+): string {
   switch (action) {
     case APIAction.LIST:
       return API_ENDPOINTS.APP_PASSWD.LIST;
@@ -260,7 +303,9 @@ export function buildAppPasswdEndpoint(action: APIAction): string {
   }
 }
 
-export function buildRspamdEndpoint(action: APIAction): string {
+export function buildRspamdEndpoint(
+  action: APIAction.GET | APIAction.UPDATE
+): string {
   switch (action) {
     case APIAction.GET:
       return API_ENDPOINTS.RSPAMD.GET;
@@ -271,7 +316,9 @@ export function buildRspamdEndpoint(action: APIAction): string {
   }
 }
 
-export function buildBackupEndpoint(action: APIAction): string {
+export function buildBackupEndpoint(
+  action: APIAction.GET | APIAction.CREATE | APIAction.UPDATE
+): string {
   switch (action) {
     case APIAction.GET:
       return API_ENDPOINTS.BACKUP.GET;
@@ -284,7 +331,14 @@ export function buildBackupEndpoint(action: APIAction): string {
   }
 }
 
-export function buildSyncJobEndpoint(action: APIAction): string {
+export function buildSyncJobEndpoint(
+  action:
+    | APIAction.LIST
+    | APIAction.CREATE
+    | APIAction.UPDATE
+    | APIAction.DELETE
+    | APIAction.GET
+): string {
   switch (action) {
     case APIAction.LIST:
       return API_ENDPOINTS.SYNCJOBS.LIST;
@@ -294,12 +348,22 @@ export function buildSyncJobEndpoint(action: APIAction): string {
       return API_ENDPOINTS.SYNCJOBS.UPDATE;
     case APIAction.DELETE:
       return API_ENDPOINTS.SYNCJOBS.DELETE;
+    case APIAction.GET:
+      return API_ENDPOINTS.SYNCJOBS.GET;
     default:
       throw new Error(`Unknown job action: ${action}`);
   }
 }
 
-export function buildQueueEndpoint(action: APIAction): string {
+export function buildQueueEndpoint(
+  action:
+    | APIAction.LIST
+    | APIAction.FLUSH
+    | APIAction.DELETE
+    | APIAction.GET
+    | APIAction.HOLD
+    | APIAction.RELEASE
+): string {
   switch (action) {
     case APIAction.LIST:
       return API_ENDPOINTS.QUEUE.LIST;
@@ -307,7 +371,35 @@ export function buildQueueEndpoint(action: APIAction): string {
       return API_ENDPOINTS.QUEUE.FLUSH;
     case APIAction.DELETE:
       return API_ENDPOINTS.QUEUE.DELETE;
+    case APIAction.GET:
+      return API_ENDPOINTS.QUEUE.GET;
+    case APIAction.HOLD:
+      return API_ENDPOINTS.QUEUE.HOLD;
+    case APIAction.RELEASE:
+      return API_ENDPOINTS.QUEUE.RELEASE;
     default:
       throw new Error(`Unknown queue action: ${action}`);
   }
-} 
+}
+
+export function buildLogEndpoint(action: APIAction.LIST): string {
+  switch (action) {
+    case APIAction.LIST:
+      return API_ENDPOINTS.LOGS.LIST;
+    default:
+      throw new Error(`Unknown log action: ${action}`);
+  }
+}
+
+export function buildResourceEndpoint(
+  action: APIAction.GET | APIAction.LIST
+): string {
+  switch (action) {
+    case APIAction.GET:
+      return API_ENDPOINTS.RESOURCES.SERVICES;
+    case APIAction.LIST:
+      return API_ENDPOINTS.RESOURCES.SERVICES;
+    default:
+      throw new Error(`Unknown resource action: ${action}`);
+  }
+}

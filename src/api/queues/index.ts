@@ -1,28 +1,32 @@
 import { APIClient } from '../client';
-import { 
-  MailcowQueueItem, 
-  ListQueueParams, 
-  QueueAction 
-} from '../../types';
+import { MailcowQueueItem, ListQueueParams, APIAction } from '../../types';
+import { buildQueueEndpoint } from '../endpoints';
 
 export class QueuesAPI {
   constructor(private client: APIClient) {}
 
   async listQueueItems(params?: ListQueueParams): Promise<MailcowQueueItem[]> {
-    return this.client.get<MailcowQueueItem[]>('/api/v1/get/queue', params as Record<string, unknown>);
+    return this.client.get<MailcowQueueItem[]>(
+      buildQueueEndpoint(APIAction.LIST),
+      { params }
+    );
   }
 
   async flushQueue(): Promise<void> {
-    await this.client.post<void>('/api/v1/edit/queue/flush', {});
+    await this.client.post<void>(buildQueueEndpoint(APIAction.FLUSH), {});
   }
 
   async deleteQueueItems(itemIds: string[]): Promise<void> {
-    await this.client.post<void>('/api/v1/delete/queue', { items: itemIds });
+    await this.client.post<void>(buildQueueEndpoint(APIAction.DELETE), {
+      items: itemIds,
+    });
   }
 
   async getQueueItemDetails(itemId: string): Promise<MailcowQueueItem> {
-    const items = await this.client.get<MailcowQueueItem[]>('/api/v1/get/queue');
-    const item = items.find(i => i.id === itemId);
+    const items = await this.client.get<MailcowQueueItem[]>(
+      buildQueueEndpoint(APIAction.GET)
+    );
+    const item = items.find((i) => i.id === itemId);
     if (!item) {
       throw new Error(`Queue item not found: ${itemId}`);
     }
@@ -38,17 +42,17 @@ export class QueuesAPI {
   async holdQueueItem(itemId: string): Promise<void> {
     // This would require a specific endpoint for holding items
     // For now, we'll use the general update mechanism
-    await this.client.post<void>('/api/v1/edit/queue', { 
-      action: 'hold', 
-      items: [itemId] 
+    await this.client.post<void>(buildQueueEndpoint(APIAction.HOLD), {
+      action: 'hold',
+      items: [itemId],
     });
   }
 
   async releaseQueueItem(itemId: string): Promise<void> {
     // This would require a specific endpoint for releasing items
-    await this.client.post<void>('/api/v1/edit/queue', { 
-      action: 'release', 
-      items: [itemId] 
+    await this.client.post<void>(buildQueueEndpoint(APIAction.RELEASE), {
+      action: 'release',
+      items: [itemId],
     });
   }
 } 

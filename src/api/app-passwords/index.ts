@@ -11,6 +11,7 @@ import {
   MailcowAPIResponse 
 } from '../../types/mailcow';
 import { buildAppPasswdEndpoint } from '../endpoints';
+import { APIAction } from '../../types/api';
 
 /**
  * App Passwords API class for managing Mailcow application passwords
@@ -21,9 +22,11 @@ export class AppPasswordsAPI {
   /**
    * List all app passwords with optional filtering
    */
-  async listAppPasswords(params?: ListAppPasswordsParams): Promise<MailcowAppPassword[]> {
+  async listAppPasswords(
+    params?: ListAppPasswordsParams
+  ): Promise<MailcowAppPassword[]> {
     const response = await this.client.get<MailcowAppPassword[]>(
-      buildAppPasswdEndpoint('list'),
+      buildAppPasswdEndpoint(APIAction.LIST),
       { params }
     );
     return response;
@@ -48,25 +51,36 @@ export class AppPasswordsAPI {
    */
   async getAppPassword(id: number): Promise<MailcowAppPassword | null> {
     const passwords = await this.listAppPasswords();
-    return passwords.find(password => password.id === id) || null;
+    return passwords.find((password) => password.id === id) || null;
   }
 
   /**
    * Get app password by username and app name
    */
-  async getAppPasswordByUserAndApp(username: string, appName: string): Promise<MailcowAppPassword | null> {
-    const passwords = await this.listAppPasswords({ username, app_name: appName });
-    return passwords.find(password => 
-      password.username === username && password.app_name === appName
-    ) || null;
+  async getAppPasswordByUserAndApp(
+    username: string,
+    appName: string
+  ): Promise<MailcowAppPassword | null> {
+    const passwords = await this.listAppPasswords({
+      username,
+      app_name: appName,
+    });
+    return (
+      passwords.find(
+        (password) =>
+          password.username === username && password.app_name === appName
+      ) || null
+    );
   }
 
   /**
    * Create a new app password
    */
-  async createAppPassword(passwordData: CreateAppPasswordRequest): Promise<MailcowAppPassword> {
+  async createAppPassword(
+    passwordData: CreateAppPasswordRequest
+  ): Promise<MailcowAppPassword> {
     const response = await this.client.post<MailcowAppPassword>(
-      buildAppPasswdEndpoint('create'),
+      buildAppPasswdEndpoint(APIAction.CREATE),
       passwordData
     );
     return response;
@@ -77,7 +91,7 @@ export class AppPasswordsAPI {
    */
   async deleteAppPassword(id: number): Promise<boolean> {
     const response = await this.client.post<MailcowAPIResponse>(
-      buildAppPasswdEndpoint('delete'),
+      buildAppPasswdEndpoint(APIAction.DELETE),
       { id }
     );
     return response.success;
@@ -86,7 +100,10 @@ export class AppPasswordsAPI {
   /**
    * Delete app password by username and app name
    */
-  async deleteAppPasswordByUserAndApp(username: string, appName: string): Promise<boolean> {
+  async deleteAppPasswordByUserAndApp(
+    username: string,
+    appName: string
+  ): Promise<boolean> {
     const password = await this.getAppPasswordByUserAndApp(username, appName);
     if (!password) {
       return false;
@@ -118,19 +135,23 @@ export class AppPasswordsAPI {
   /**
    * Get app passwords created before a specific date
    */
-  async getAppPasswordsCreatedBefore(date: Date): Promise<MailcowAppPassword[]> {
+  async getAppPasswordsCreatedBefore(
+    date: Date
+  ): Promise<MailcowAppPassword[]> {
     return this.listAppPasswords({ created_before: date });
   }
 
   /**
    * Get app passwords that haven't been used recently
    */
-  async getUnusedAppPasswords(daysThreshold: number = 30): Promise<MailcowAppPassword[]> {
+  async getUnusedAppPasswords(
+    daysThreshold: number = 30
+  ): Promise<MailcowAppPassword[]> {
     const passwords = await this.listAppPasswords();
     const thresholdDate = new Date();
     thresholdDate.setDate(thresholdDate.getDate() - daysThreshold);
-    
-    return passwords.filter(password => {
+
+    return passwords.filter((password) => {
       if (!password.last_used) {
         return password.created < thresholdDate;
       }
@@ -149,21 +170,21 @@ export class AppPasswordsAPI {
     byApp: Record<string, number>;
   }> {
     const passwords = await this.listAppPasswords();
-    
+
     const byUser: Record<string, number> = {};
     const byApp: Record<string, number> = {};
-    
-    passwords.forEach(password => {
+
+    passwords.forEach((password) => {
       byUser[password.username] = (byUser[password.username] || 0) + 1;
       byApp[password.app_name] = (byApp[password.app_name] || 0) + 1;
     });
 
     return {
       totalPasswords: passwords.length,
-      activePasswords: passwords.filter(p => p.active).length,
-      inactivePasswords: passwords.filter(p => !p.active).length,
+      activePasswords: passwords.filter((p) => p.active).length,
+      inactivePasswords: passwords.filter((p) => !p.active).length,
       byUser,
-      byApp
+      byApp,
     };
   }
 
@@ -182,11 +203,14 @@ export class AppPasswordsAPI {
   /**
    * Check if app password is expired (unused for too long)
    */
-  isAppPasswordExpired(password: MailcowAppPassword, maxDays: number = 90): boolean {
+  isAppPasswordExpired(
+    password: MailcowAppPassword,
+    maxDays: number = 90
+  ): boolean {
     const lastUsed = password.last_used || password.created;
     const expiryDate = new Date();
     expiryDate.setDate(expiryDate.getDate() - maxDays);
-    
+
     return lastUsed < expiryDate;
   }
 
