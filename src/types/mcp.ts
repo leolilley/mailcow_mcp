@@ -32,9 +32,15 @@ export interface MCPError {
 
 // MCP Protocol Specific Types
 export interface MCPCapabilities {
-  tools?: boolean;
-  resources?: boolean;
-  prompts?: boolean;
+  tools?: {
+    listChanged?: boolean;
+  };
+  resources?: {
+    listChanged?: boolean;
+  };
+  prompts?: {
+    listChanged?: boolean;
+  };
   [key: string]: unknown;
 }
 
@@ -46,11 +52,29 @@ export interface MCPServerCapabilities {
   };
 }
 
-// Tool Types
+// Annotations (from MCP spec)
+export interface Annotations {
+  audience?: ('user' | 'assistant')[];
+  lastModified?: string;
+  priority?: number;
+}
+
+// Tool Types (updated to match MCP spec)
 export interface Tool {
   name: string;
-  description: string;
+  title?: string;
+  description?: string;
   inputSchema: ToolSchema;
+  outputSchema?: ToolSchema;
+  annotations?: ToolAnnotations;
+}
+
+export interface ToolAnnotations {
+  title?: string;
+  destructiveHint?: boolean;
+  idempotentHint?: boolean;
+  openWorldHint?: boolean;
+  readOnlyHint?: boolean;
 }
 
 export interface ToolSchema {
@@ -76,15 +100,61 @@ export interface ToolInput {
   [key: string]: unknown;
 }
 
-export interface ToolResult {
-  content: ToolResultContent[];
+// Content Types (from MCP spec)
+export interface TextContent {
+  type: 'text';
+  text: string;
+  annotations?: Annotations;
 }
 
-export interface ToolResultContent {
-  type: 'text' | 'image' | 'error';
-  text?: string;
-  imageUrl?: string;
-  imageAlt?: string;
+export interface ImageContent {
+  type: 'image';
+  data: string; // base64 encoded
+  mimeType: string;
+  annotations?: Annotations;
+}
+
+export interface AudioContent {
+  type: 'audio';
+  data: string; // base64 encoded
+  mimeType: string;
+  annotations?: Annotations;
+}
+
+export interface ResourceLink {
+  type: 'resource_link';
+  uri: string;
+  name: string;
+  description?: string;
+  mimeType?: string;
+  annotations?: Annotations;
+}
+
+export interface EmbeddedResource {
+  type: 'resource';
+  resource: {
+    uri: string;
+    title: string;
+    mimeType?: string;
+    text?: string;
+    blob?: string; // base64 encoded
+    annotations?: Annotations;
+  };
+  annotations?: Annotations;
+}
+
+export type ContentBlock =
+  | TextContent
+  | ImageContent
+  | AudioContent
+  | ResourceLink
+  | EmbeddedResource;
+
+// Tool Result (updated to match MCP spec)
+export interface ToolResult {
+  content: ContentBlock[];
+  isError?: boolean;
+  structuredContent?: unknown;
 }
 
 export interface ToolError {
@@ -189,10 +259,8 @@ export function isTool(obj: unknown): obj is Tool {
     typeof obj === 'object' &&
     obj !== null &&
     'name' in obj &&
-    'description' in obj &&
     'inputSchema' in obj &&
-    typeof obj.name === 'string' &&
-    typeof obj.description === 'string'
+    typeof obj.name === 'string'
   );
 }
 
@@ -208,5 +276,71 @@ export function isResource(obj: unknown): obj is Resource {
     typeof obj.name === 'string' &&
     typeof obj.mimeType === 'string' &&
     Array.isArray(obj.contents)
+  );
+}
+
+export function isTextContent(obj: unknown): obj is TextContent {
+  return (
+    typeof obj === 'object' &&
+    obj !== null &&
+    'type' in obj &&
+    obj.type === 'text' &&
+    'text' in obj &&
+    typeof obj.text === 'string'
+  );
+}
+
+export function isImageContent(obj: unknown): obj is ImageContent {
+  return (
+    typeof obj === 'object' &&
+    obj !== null &&
+    'type' in obj &&
+    obj.type === 'image' &&
+    'data' in obj &&
+    'mimeType' in obj &&
+    typeof obj.data === 'string' &&
+    typeof obj.mimeType === 'string'
+  );
+}
+
+export function isAudioContent(obj: unknown): obj is AudioContent {
+  return (
+    typeof obj === 'object' &&
+    obj !== null &&
+    'type' in obj &&
+    obj.type === 'audio' &&
+    'data' in obj &&
+    'mimeType' in obj &&
+    typeof obj.data === 'string' &&
+    typeof obj.mimeType === 'string'
+  );
+}
+
+export function isResourceLink(obj: unknown): obj is ResourceLink {
+  return (
+    typeof obj === 'object' &&
+    obj !== null &&
+    'type' in obj &&
+    obj.type === 'resource_link' &&
+    'uri' in obj &&
+    'name' in obj &&
+    typeof obj.uri === 'string' &&
+    typeof obj.name === 'string'
+  );
+}
+
+export function isEmbeddedResource(obj: unknown): obj is EmbeddedResource {
+  return (
+    typeof obj === 'object' &&
+    obj !== null &&
+    'type' in obj &&
+    obj.type === 'resource' &&
+    'resource' in obj &&
+    typeof obj.resource === 'object' &&
+    obj.resource !== null &&
+    'uri' in obj.resource &&
+    'title' in obj.resource &&
+    typeof obj.resource.uri === 'string' &&
+    typeof obj.resource.title === 'string'
   );
 } 

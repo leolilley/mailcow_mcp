@@ -1,244 +1,396 @@
 # Tools Directory
 
-This directory contains MCP tool implementations for the Mailcow MCP server.
+This directory contains the complete MCP tool implementation for the Mailcow MCP server, including the tool registry, base classes, validation, error handling, and mock implementations.
+
+## Implementation Status
+
+✅ **COMPLETED** - All core tool infrastructure is implemented and ready for use by Teams I-N.
 
 ## Current Structure
 
 ```
 tools/
 ├── README.md             # This documentation
-├── aliases/             # Placeholder: Alias management tools
-├── domains/             # Placeholder: Domain management tools  
-├── logs/                # Placeholder: Log management tools
-├── mailboxes/           # Placeholder: Mailbox management tools
-├── resources/           # Placeholder: Resource management tools
-├── spam/                # Placeholder: Spam management tools
-└── system/              # Placeholder: System management tools
-```
-
-**Note:** This directory is currently a placeholder structure. Tool types are defined in `src/types/tools.ts`.
-
-## Planned Implementation Structure
-
-When implemented, the structure will be:
-
-```
-tools/
-├── index.ts              # Main tools exports
+├── index.ts              # Main exports
 ├── registry.ts           # Tool registry and management
 ├── base.ts               # Base tool classes and interfaces
-├── domains/             # Domain management tools
-│   ├── create-domain.ts
-│   ├── list-domains.ts
-│   ├── update-domain.ts
-│   └── delete-domain.ts
-├── mailboxes/           # Mailbox management tools
-│   ├── create-mailbox.ts
-│   ├── list-mailboxes.ts
-│   ├── update-mailbox.ts
-│   └── delete-mailbox.ts
-├── aliases/             # Alias management tools
-│   ├── create-alias.ts
-│   ├── list-aliases.ts
-│   ├── update-alias.ts
-│   └── delete-alias.ts
-├── system/              # System management tools
-│   ├── system-status.ts
-│   ├── service-status.ts
-│   └── system-info.ts
-├── logs/                # Log management tools
-│   ├── get-logs.ts
-│   └── search-logs.ts
-├── spam/                # Spam management tools
-│   ├── get-spam-settings.ts
-│   └── update-spam-settings.ts
-├── validation.ts        # Tool input validation
-└── errors.ts            # Tool error handling
+├── validation.ts         # Tool input validation
+├── errors.ts             # Tool error handling
+├── mocks.ts              # Mock implementations for testing
+├── aliases/             # Placeholder: Alias management tools (Team K)
+├── domains/             # Placeholder: Domain management tools (Team I)
+├── logs/                # Placeholder: Log management tools (Team N)
+├── mailboxes/           # Placeholder: Mailbox management tools (Team J)
+├── resources/           # Placeholder: Resource management tools (Team F)
+├── spam/                # Placeholder: Spam management tools (Team M)
+└── system/              # Placeholder: System management tools (Team L)
 ```
 
-## Planned Tool Categories
+## Core Components
 
-### 1. Domain Management Tools
-- **create-domain**: Create new domains in Mailcow
-- **list-domains**: List existing domains with filtering
-- **update-domain**: Modify domain settings
-- **delete-domain**: Remove domains from Mailcow
-- **domain-info**: Get detailed domain information
+### 1. Tool Registry (`registry.ts`)
+The central tool management system that handles:
+- Tool registration and unregistration
+- Tool discovery and listing
+- Tool execution with validation and error handling
+- Rate limiting and caching
+- Metrics collection and monitoring
 
-### 2. Mailbox Management Tools
-- **create-mailbox**: Create new mailboxes
-- **list-mailboxes**: List mailboxes with filtering
-- **update-mailbox**: Modify mailbox settings
-- **delete-mailbox**: Remove mailboxes
-- **mailbox-quota**: Manage mailbox quotas
-
-### 3. Alias Management Tools
-- **create-alias**: Create email aliases
-- **list-aliases**: List existing aliases
-- **update-alias**: Modify alias settings
-- **delete-alias**: Remove aliases
-
-### 4. System Management Tools
-- **system-status**: Get overall system status
-- **service-status**: Check individual service status
-- **system-info**: Get system information
-- **restart-services**: Restart Mailcow services
-
-### 5. Log Management Tools
-- **get-logs**: Retrieve log entries
-- **search-logs**: Search logs with filters
-- **export-logs**: Export logs for analysis
-
-### 6. Spam Management Tools
-- **get-spam-settings**: Retrieve spam filter settings
-- **update-spam-settings**: Modify spam filter settings
-- **spam-statistics**: Get spam filtering statistics
-
-## Planned Tool Interface
-
-Each tool will implement the standard MCP tool interface:
-
-```typescript
-interface MailcowTool {
-  name: string;
-  description: string;
-  inputSchema: ToolSchema;
-  handler: ToolHandler;
-}
-
-interface ToolHandler {
-  (input: unknown, context: ToolContext): Promise<ToolResult>;
-}
-
-interface ToolContext {
-  apiClient: APIClient;
-  authManager: AuthManager;
-  logger: Logger;
-  config: MailcowConfig;
-}
-```
-
-## Planned Implementation Features
-
-### 1. Tool Registry
-- Automatic tool discovery and registration
-- Schema validation for tool inputs
+**Key Features:**
+- Automatic input validation against schemas
 - Permission checking before execution
+- Rate limiting with configurable limits
+- Result caching for performance
+- Comprehensive metrics tracking
 - Error handling and logging
 
-### 2. Base Tool Class
+### 2. Base Tool Classes (`base.ts`)
+Abstract base classes and utilities for tool development:
+- `BaseTool` - Abstract base class for all tools
+- `FunctionTool` - Implementation for function-based tools
+- `ToolFactory` - Factory for creating tools from different sources
+- `ToolBuilder` - Fluent builder for tool creation
+- `ToolUtils` - Utility functions for common operations
+
+**Key Features:**
+- Standardized tool interface implementation
+- Built-in input validation
+- Permission checking utilities
+- Error handling and logging
+- Result formatting helpers
+
+### 3. Tool Validation (`validation.ts`)
+Comprehensive validation system for tool inputs and schemas:
+- Schema-based input validation
+- Type checking and format validation
+- Required field validation
+- Enum and pattern validation
+- Input sanitization
+
+**Key Features:**
+- JSON Schema validation
+- Email, URI, date, and date-time format validation
+- Custom pattern validation
+- Nested object and array validation
+- Sanitization for security
+
+### 4. Tool Error Handling (`errors.ts`)
+Specialized error classes and utilities for tool-related errors:
+- `ToolValidationError` - Input validation errors
+- `ToolExecutionError` - Tool execution errors
+- `ToolPermissionError` - Permission-related errors
+- `ToolNotFoundError` - Tool not found errors
+- `ToolRateLimitError` - Rate limiting errors
+- `ToolTimeoutError` - Timeout errors
+
+**Key Features:**
+- MCP-compliant error codes
+- Detailed error messages and context
+- Error categorization and handling
+- Retry logic for transient errors
+
+### 5. Mock Implementations (`mocks.ts`)
+Complete mock implementations for testing:
+- `MockTool` - Basic mock tool implementation
+- `MockValidationErrorTool` - Tool that throws validation errors
+- `MockPermissionErrorTool` - Tool that requires specific permissions
+- `MockExecutionErrorTool` - Tool that throws execution errors
+- `MockToolFactory` - Factory for creating mock tools
+
+## Usage Examples
+
+### Creating a Simple Tool
+
 ```typescript
-abstract class BaseTool implements MailcowTool {
-  abstract name: string;
-  abstract description: string;
-  abstract inputSchema: ToolSchema;
-  
-  abstract execute(input: unknown, context: ToolContext): Promise<ToolResult>;
-  
-  protected validateInput(input: unknown): void {
-    // Schema validation logic
+import { BaseTool, ToolInput, ToolContext, ToolHandlerResult } from '../tools';
+import { Logger } from '../utils';
+
+class MyDomainTool extends BaseTool {
+  readonly name = 'list_domains';
+  readonly description = 'List all domains in Mailcow';
+  readonly inputSchema = {
+    type: 'object',
+    properties: {
+      filter: { 
+        type: 'string',
+        description: 'Optional filter for domain names'
+      }
+    }
+  };
+
+  async execute(input: ToolInput, context: ToolContext): Promise<ToolHandlerResult> {
+    try {
+      // Check permissions
+      if (!this.validatePermissions(context, ['domains:read'])) {
+        return {
+          success: false,
+          error: {
+            code: -32006,
+            message: 'Insufficient permissions',
+            details: 'Requires domains:read permission'
+          }
+        };
+      }
+
+      // Execute tool logic
+      const filter = input.filter as string;
+      const domains = await this.getDomains(filter);
+      
+      this.logExecution(input, context, true);
+      
+      return {
+        success: true,
+        result: {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(domains, null, 2)
+            }
+          ]
+        }
+      };
+    } catch (error) {
+      return await this.handleError(error instanceof Error ? error : new Error(String(error)), context);
+    }
   }
-  
-  protected checkPermissions(context: ToolContext): void {
-    // Permission checking logic
+
+  private async getDomains(filter?: string): Promise<unknown[]> {
+    // Implementation here
+    return [];
   }
 }
 ```
 
-### 3. Tool Validation
-- Input schema validation using Zod
-- Permission-based access control
-- Rate limiting and security checks
-- Audit logging for all tool executions
+### Using the Tool Registry
 
-### 4. Error Handling
-- Standardized error responses
-- Error categorization and logging
-- User-friendly error messages
-- Debug information for development
+```typescript
+import { ToolRegistry, Logger } from '../tools';
+import { ConsoleLogDestination } from '../utils';
+
+// Create logger
+const logger = new Logger(
+  { level: 'info' },
+  new ConsoleLogDestination()
+);
+
+// Create registry
+const registry = new ToolRegistry(logger);
+
+// Register a tool
+const myTool = new MyDomainTool(logger);
+registry.register(myTool);
+registry.registerHandler('list_domains', myTool.execute.bind(myTool), {
+  category: 'domain',
+  requiresAuth: true,
+  rateLimited: true
+});
+
+// Execute a tool
+const context = {
+  requestId: 'req-123',
+  userId: 'user-456',
+  timestamp: new Date(),
+  permissions: ['domains:read'],
+  accessLevel: 'read-write'
+};
+
+const result = await registry.execute('list_domains', { filter: 'example.com' }, context);
+```
+
+### Using the Tool Builder
+
+```typescript
+import { ToolBuilder, Logger } from '../tools';
+
+const logger = new Logger({ level: 'info' }, new ConsoleLogDestination());
+const builder = new ToolBuilder(logger);
+
+const tool = builder
+  .withName('create_domain')
+  .withDescription('Create a new domain in Mailcow')
+  .withInputSchema({
+    type: 'object',
+    properties: {
+      domain: { type: 'string', description: 'Domain name' },
+      description: { type: 'string', description: 'Domain description' }
+    },
+    required: ['domain']
+  })
+  .withHandler(async (input, context) => {
+    // Tool implementation
+    return { success: true, result: { content: [{ type: 'text', text: 'Domain created' }] } };
+  })
+  .withMetadata({
+    category: 'domain',
+    requiresAuth: true,
+    rateLimited: false
+  })
+  .build();
+```
+
+## Validation Examples
+
+### Schema Validation
+
+```typescript
+import { validateToolInput, validateToolSchema } from '../tools';
+
+// Validate input
+const schema = {
+  type: 'object',
+  properties: {
+    email: { 
+      type: 'string',
+      format: 'email'
+    },
+    age: { 
+      type: 'number',
+      minimum: 18,
+      maximum: 120
+    }
+  },
+  required: ['email']
+};
+
+const input = { email: 'user@example.com', age: 25 };
+const validation = validateToolInput(input, schema);
+
+if (!validation.valid) {
+  console.log('Validation errors:', validation.errors);
+}
+```
+
+### Error Handling
+
+```typescript
+import { ToolErrorUtils, ToolValidationError } from '../tools';
+
+try {
+  // Tool execution
+} catch (error) {
+  if (ToolErrorUtils.isValidationError(error)) {
+    console.log('Validation errors:', error.getValidationErrors());
+  } else if (ToolErrorUtils.isPermissionError(error)) {
+    console.log('Required permissions:', error.getRequiredPermissions());
+  } else {
+    const toolError = ToolErrorUtils.toToolError(error, 'my_tool');
+    console.log('Tool error:', toolError.message);
+  }
+}
+```
+
+## Testing with Mocks
+
+```typescript
+import { MockTool, MockToolFactory, mockToolContext, mockToolInput } from '../tools';
+import { Logger } from '../utils';
+
+const logger = new Logger({ level: 'debug' }, new ConsoleLogDestination());
+
+// Test with mock tool
+const mockTool = MockToolFactory.createMockTool(logger);
+const result = await mockTool.execute(mockToolInput, mockToolContext);
+
+console.log('Mock tool result:', result);
+```
 
 ## Integration with MCP Protocol
 
-### Tool Schema Definition
+The tool implementation is fully compliant with the MCP protocol:
+
+### Tool Schema Format
 ```json
 {
-  "name": "create-domain",
-  "description": "Create a new domain in Mailcow",
+  "name": "list_domains",
+  "description": "List all domains in Mailcow",
   "inputSchema": {
     "type": "object",
     "properties": {
-      "domain": {
+      "filter": {
         "type": "string",
-        "description": "Domain name to create"
-      },
-      "description": {
-        "type": "string", 
-        "description": "Optional domain description"
+        "description": "Optional filter for domain names"
       }
-    },
-    "required": ["domain"]
+    }
   }
 }
 ```
 
-### Tool Execution Flow
-1. **Input Validation**: Validate against schema
-2. **Permission Check**: Verify user has required permissions  
-3. **API Call**: Execute operation via Mailcow API
-4. **Response Processing**: Format response for MCP client
-5. **Logging**: Record execution and results
+### Tool Result Format
+```json
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "Domain list: example.com, test.com"
+    }
+  ]
+}
+```
 
-## Security Considerations
+### Error Format
+```json
+{
+  "code": -32602,
+  "message": "Invalid parameters",
+  "details": "Required field 'domain' is missing"
+}
+```
 
-### 1. Permission System
-- Tools check user permissions before execution
-- Read-only vs read-write access enforcement
-- Resource-specific permissions (domain, mailbox, etc.)
+## Security Features
 
-### 2. Input Validation  
+### Input Validation
 - All inputs validated against schemas
-- Sanitization of user inputs
-- Protection against injection attacks
+- Type checking and format validation
+- Required field validation
+- Sanitization for security
 
-### 3. Audit Logging
-- All tool executions logged
-- Failed attempts and permission denials recorded
-- Context information for security analysis
+### Permission System
+- Role-based access control
+- Tool-specific permissions
+- Permission checking before execution
+- Audit logging
 
-## Future Implementation Plan
+### Rate Limiting
+- Configurable rate limits per tool
+- Automatic rate limit enforcement
+- Retry-after headers
+- Rate limit monitoring
 
-### Phase 1: Core Infrastructure
-1. Implement tool registry and base classes
-2. Create validation and error handling systems
-3. Set up permission checking framework
+## Performance Features
 
-### Phase 2: Domain Tools
-1. Implement domain CRUD operations
-2. Add domain listing and filtering
-3. Create domain validation tools
+### Caching
+- Result caching with TTL
+- Cache key generation based on input and context
+- Cache invalidation strategies
+- Cache hit monitoring
 
-### Phase 3: Mailbox Tools  
-1. Implement mailbox CRUD operations
-2. Add quota management tools
-3. Create mailbox search functionality
+### Monitoring
+- Execution metrics collection
+- Performance monitoring
+- Error rate tracking
+- Response time analysis
 
-### Phase 4: System Tools
-1. Implement system status tools
-2. Add service management tools
-3. Create log management tools
+## For Teams I-N
 
-### Phase 5: Advanced Features
-1. Add spam management tools
-2. Implement bulk operations
-3. Create reporting and analytics tools
+This tool infrastructure provides everything needed to implement domain-specific tools:
 
-## Development Guidelines
+1. **Extend BaseTool** for your tool implementations
+2. **Use ToolRegistry** to register and manage tools
+3. **Implement validation** using the provided validation system
+4. **Handle errors** using the specialized error classes
+5. **Test with mocks** using the provided mock implementations
 
-When implementing tools:
+The infrastructure handles all the complex parts (validation, error handling, permissions, rate limiting, caching, monitoring) so you can focus on your domain-specific logic.
 
-1. **Follow Interface**: Implement the standard tool interface
-2. **Schema First**: Define input schema before implementation
-3. **Permission Aware**: Always check permissions
-4. **Error Handling**: Provide meaningful error messages
-5. **Testing**: Write comprehensive unit tests
-6. **Documentation**: Document all tools and schemas 
+## Next Steps
+
+Teams I-N should now implement their domain-specific tools using this infrastructure:
+
+- **Team I**: Domain management tools
+- **Team J**: Mailbox management tools  
+- **Team K**: Alias management tools
+- **Team L**: System management tools
+- **Team M**: Spam management tools
+- **Team N**: Log management tools
+
+Each team should create their tools in the appropriate subdirectory and follow the patterns established in this implementation. 

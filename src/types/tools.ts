@@ -3,7 +3,7 @@
  * Defines types for MCP tool implementation, handlers, validation, and results
  */
 
-import { Tool, ToolInput, ToolResult, ToolError } from './mcp';
+import { Tool, ToolInput, ToolResult, ToolError, Annotations } from './mcp';
 
 // Tool Handler Types
 export interface ToolHandler<TInput = ToolInput, TResult = ToolResult> {
@@ -117,7 +117,6 @@ export interface ToolExecutionResult {
   error?: ToolError;
 }
 
-// Tool Error Types
 export interface ToolExecutionError extends ToolError {
   executionId: string;
   toolName: string;
@@ -139,7 +138,7 @@ export enum ToolErrorCode {
   UNKNOWN_ERROR = 'UNKNOWN_ERROR',
 }
 
-// Tool Result Types
+// Tool Result Types (updated to use MCP content types)
 export interface ToolResultContentType {
   type: 'text' | 'image' | 'error' | 'table' | 'json';
   text?: string;
@@ -147,6 +146,7 @@ export interface ToolResultContentType {
   imageAlt?: string;
   table?: ToolResultTable;
   json?: unknown;
+  annotations?: Annotations;
 }
 
 export interface ToolResultTable {
