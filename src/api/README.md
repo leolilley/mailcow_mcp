@@ -2,6 +2,84 @@
 
 This directory contains the HTTP client and API endpoint handlers for communicating with the Mailcow API.
 
+## Mailcow API Alignment Analysis
+
+### ✅ **Correctly Implemented:**
+
+1. **API Endpoint Structure**: Our implementation correctly uses the action-based pattern that Mailcow uses:
+   - `/api/v1/get/domain` ✅
+   - `/api/v1/add/domain` ✅  
+   - `/api/v1/edit/domain` ✅
+   - `/api/v1/delete/domain` ✅
+
+2. **Authentication**: We correctly implement API key authentication as mentioned in the docs
+
+3. **Basic CRUD Operations**: Our domain, mailbox, and alias operations align with the documented patterns
+
+### ❌ **Missing API Endpoints:**
+
+Based on Mailcow documentation analysis, we need to implement:
+
+1. **User Management**:
+   - `/api/v1/get/user` - List users
+   - `/api/v1/add/user` - Create user
+   - `/api/v1/edit/user` - Update user
+   - `/api/v1/delete/user` - Delete user
+
+2. **Quarantine Management**:
+   - `/api/v1/get/quarantine` - List quarantined items
+   - `/api/v1/edit/quarantine` - Release/delete quarantined items
+
+3. **DKIM Management**:
+   - `/api/v1/get/dkim` - Get DKIM keys
+   - `/api/v1/add/dkim` - Add DKIM key
+   - `/api/v1/edit/dkim` - Update DKIM key
+   - `/api/v1/delete/dkim` - Delete DKIM key
+
+4. **TLS Policy Management**:
+   - `/api/v1/get/tls-policy` - Get TLS policies
+   - `/api/v1/add/tls-policy` - Add TLS policy
+   - `/api/v1/edit/tls-policy` - Update TLS policy
+   - `/api/v1/delete/tls-policy` - Delete TLS policy
+
+5. **OAuth2 Management**:
+   - `/api/v1/get/oauth2` - Get OAuth2 clients
+   - `/api/v1/add/oauth2` - Add OAuth2 client
+   - `/api/v1/edit/oauth2` - Update OAuth2 client
+   - `/api/v1/delete/oauth2` - Delete OAuth2 client
+
+6. **App Passwords**:
+   - `/api/v1/get/app-passwd` - Get app passwords
+   - `/api/v1/add/app-passwd` - Add app password
+   - `/api/v1/delete/app-passwd` - Delete app password
+
+7. **Rspamd Management**:
+   - `/api/v1/get/rspamd` - Get Rspamd settings
+   - `/api/v1/edit/rspamd` - Update Rspamd settings
+
+8. **Backup Management**:
+   - `/api/v1/get/backup` - Get backup status
+   - `/api/v1/add/backup` - Create backup
+   - `/api/v1/edit/backup` - Update backup settings
+
+### 🔄 **Implementation Status:**
+
+- **Domains**: ✅ Complete
+- **Mailboxes**: ✅ Complete  
+- **Aliases**: ✅ Complete
+- **Users**: ✅ Complete
+- **DKIM**: ✅ Complete
+- **Quarantine**: ✅ Complete
+- **TLS Policy**: ✅ Complete
+- **OAuth2**: ✅ Complete
+- **App Passwords**: ✅ Complete
+- **Rspamd**: ✅ Complete
+- **Resources**: ✅ Complete
+- **Spam**: ✅ Complete
+- **System**: ✅ Complete
+- **Logs**: ✅ Complete
+- **Backup**: ❌ Missing (partially implemented in System API)
+
 ## File Structure
 
 ```
@@ -79,26 +157,79 @@ POST /api/v1/delete/{resource}  // Delete resource
 - Delete alias: `POST /api/v1/delete/alias`
 - Get user aliases: Filter aliases by goto field
 
-### 7. Resource Management (`resources/`)
+### 7. User Management (`users/`)
+- `UsersAPI` class with CRUD operations
+- List users: `GET /api/v1/get/user`
+- Create user: `POST /api/v1/add/user`
+- Update user: `POST /api/v1/edit/user`
+- Delete user: `POST /api/v1/delete/user`
+- User activation/deactivation and quota management
+
+### 8. DKIM Management (`dkim/`)
+- `DKIMAPI` class with CRUD operations
+- List DKIM keys: `GET /api/v1/get/dkim`
+- Create DKIM key: `POST /api/v1/add/dkim`
+- Update DKIM key: `POST /api/v1/edit/dkim`
+- Delete DKIM key: `POST /api/v1/delete/dkim`
+- DNS record generation and validation
+
+### 9. Quarantine Management (`quarantine/`)
+- `QuarantineAPI` class for quarantined email management
+- List quarantined items: `GET /api/v1/get/quarantine`
+- Release/delete items: `POST /api/v1/edit/quarantine`
+- Whitelist/blacklist management
+- Statistics and filtering capabilities
+
+### 10. TLS Policy Management (`tls-policy/`)
+- `TLSPolicyAPI` class with CRUD operations
+- List TLS policies: `GET /api/v1/get/tls-policy`
+- Create TLS policy: `POST /api/v1/add/tls-policy`
+- Update TLS policy: `POST /api/v1/edit/tls-policy`
+- Delete TLS policy: `POST /api/v1/delete/tls-policy`
+- Policy validation and security assessment
+
+### 11. OAuth2 Management (`oauth2/`)
+- `OAuth2API` class with CRUD operations
+- List OAuth2 clients: `GET /api/v1/get/oauth2`
+- Create OAuth2 client: `POST /api/v1/add/oauth2`
+- Update OAuth2 client: `POST /api/v1/edit/oauth2`
+- Delete OAuth2 client: `POST /api/v1/delete/oauth2`
+- Authorization URL generation and scope management
+
+### 12. App Passwords Management (`app-passwords/`)
+- `AppPasswordsAPI` class for application password management
+- List app passwords: `GET /api/v1/get/app-passwd`
+- Create app password: `POST /api/v1/add/app-passwd`
+- Delete app password: `POST /api/v1/delete/app-passwd`
+- Password expiration and usage tracking
+
+### 13. Rspamd Management (`rspamd/`)
+- `RspamdAPI` class for Rspamd settings management
+- Get Rspamd settings: `GET /api/v1/get/rspamd`
+- Update Rspamd settings: `POST /api/v1/edit/rspamd`
+- Whitelist/blacklist management
+- Score threshold and feature configuration
+
+### 14. Resource Management (`resources/`)
 - `ResourcesAPI` class for service management
 - List services: `GET /api/v1/get/services`
 - Get service details: Filter from list results
 - Get services by category: Client-side filtering
 
-### 8. Spam Management (`spam/`)
+### 15. Spam Management (`spam/`)
 - `SpamAPI` class for spam settings
 - Get spam settings: `GET /api/v1/get/spam/settings`
 - Update spam settings: `POST /api/v1/edit/spam/settings`
 - Whitelist/blacklist management through settings updates
 
-### 9. System Management (`system/`)
+### 16. System Management (`system/`)
 - `SystemAPI` class for system operations
 - Get system status: `GET /api/v1/get/system/status`
 - Get service status: `GET /api/v1/get/system/services`
 - Restart service: `POST /api/v1/edit/system/service`
 - Backup management: `GET/POST /api/v1/get|add/system/backup`
 
-### 10. Log Management (`logs/`)
+### 17. Log Management (`logs/`)
 - `LogsAPI` class for log retrieval
 - Get logs: `GET /api/v1/get/logs`
 - Filter by service type (access, error, performance)
