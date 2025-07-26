@@ -9,6 +9,7 @@ import {
   UpdateRspamdSettingsRequest
 } from '../../types/mailcow';
 import { buildRspamdEndpoint } from '../endpoints';
+import { APIAction } from '../../types/api';
 
 /**
  * Rspamd API class for managing Mailcow Rspamd settings
@@ -21,7 +22,7 @@ export class RspamdAPI {
    */
   async getRspamdSettings(): Promise<MailcowRspamdSettings> {
     const response = await this.client.get<MailcowRspamdSettings>(
-      buildRspamdEndpoint('get')
+      buildRspamdEndpoint(APIAction.GET)
     );
     return response;
   }
@@ -29,9 +30,11 @@ export class RspamdAPI {
   /**
    * Update Rspamd settings
    */
-  async updateRspamdSettings(settings: UpdateRspamdSettingsRequest): Promise<MailcowRspamdSettings> {
+  async updateRspamdSettings(
+    settings: UpdateRspamdSettingsRequest
+  ): Promise<MailcowRspamdSettings> {
     const response = await this.client.post<MailcowRspamdSettings>(
-      buildRspamdEndpoint('update'),
+      buildRspamdEndpoint(APIAction.UPDATE),
       settings
     );
     return response;
@@ -54,7 +57,9 @@ export class RspamdAPI {
   /**
    * Update Rspamd score threshold
    */
-  async updateRspamdScoreThreshold(threshold: number): Promise<MailcowRspamdSettings> {
+  async updateRspamdScoreThreshold(
+    threshold: number
+  ): Promise<MailcowRspamdSettings> {
     return this.updateRspamdSettings({ score_threshold: threshold });
   }
 
@@ -70,9 +75,11 @@ export class RspamdAPI {
   /**
    * Remove sender from Rspamd whitelist
    */
-  async removeFromRspamdWhitelist(sender: string): Promise<MailcowRspamdSettings> {
+  async removeFromRspamdWhitelist(
+    sender: string
+  ): Promise<MailcowRspamdSettings> {
     const currentSettings = await this.getRspamdSettings();
-    const newWhitelist = currentSettings.whitelist.filter(s => s !== sender);
+    const newWhitelist = currentSettings.whitelist.filter((s) => s !== sender);
     return this.updateRspamdSettings({ whitelist: newWhitelist });
   }
 
@@ -88,9 +95,11 @@ export class RspamdAPI {
   /**
    * Remove sender from Rspamd blacklist
    */
-  async removeFromRspamdBlacklist(sender: string): Promise<MailcowRspamdSettings> {
+  async removeFromRspamdBlacklist(
+    sender: string
+  ): Promise<MailcowRspamdSettings> {
     const currentSettings = await this.getRspamdSettings();
-    const newBlacklist = currentSettings.blacklist.filter(s => s !== sender);
+    const newBlacklist = currentSettings.blacklist.filter((s) => s !== sender);
     return this.updateRspamdSettings({ blacklist: newBlacklist });
   }
 
@@ -125,7 +134,9 @@ export class RspamdAPI {
   /**
    * Update Rspamd custom settings
    */
-  async updateRspamdCustomSettings(settings: Record<string, unknown>): Promise<MailcowRspamdSettings> {
+  async updateRspamdCustomSettings(
+    settings: Record<string, unknown>
+  ): Promise<MailcowRspamdSettings> {
     return this.updateRspamdSettings({ settings });
   }
 
@@ -164,14 +175,18 @@ export class RspamdAPI {
   /**
    * Bulk update Rspamd whitelist
    */
-  async updateRspamdWhitelist(senders: string[]): Promise<MailcowRspamdSettings> {
+  async updateRspamdWhitelist(
+    senders: string[]
+  ): Promise<MailcowRspamdSettings> {
     return this.updateRspamdSettings({ whitelist: senders });
   }
 
   /**
    * Bulk update Rspamd blacklist
    */
-  async updateRspamdBlacklist(senders: string[]): Promise<MailcowRspamdSettings> {
+  async updateRspamdBlacklist(
+    senders: string[]
+  ): Promise<MailcowRspamdSettings> {
     return this.updateRspamdSettings({ blacklist: senders });
   }
 
@@ -203,14 +218,14 @@ export class RspamdAPI {
     bayesEnabled: boolean;
   }> {
     const settings = await this.getRspamdSettings();
-    
+
     return {
       enabled: settings.enabled,
       scoreThreshold: settings.score_threshold,
       whitelistCount: settings.whitelist.length,
       blacklistCount: settings.blacklist.length,
       greylistEnabled: settings.greylist_enabled,
-      bayesEnabled: settings.bayes_enabled
+      bayesEnabled: settings.bayes_enabled,
     };
   }
 } 

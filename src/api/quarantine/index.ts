@@ -10,6 +10,7 @@ import {
   MailcowAPIResponse 
 } from '../../types/mailcow';
 import { buildQuarantineEndpoint } from '../endpoints';
+import { APIAction } from '../../types/api';
 
 /**
  * Quarantine API class for managing Mailcow quarantined items
@@ -20,9 +21,11 @@ export class QuarantineAPI {
   /**
    * List all quarantined items with optional filtering
    */
-  async listQuarantineItems(params?: ListQuarantineParams): Promise<MailcowQuarantineItem[]> {
+  async listQuarantineItems(
+    params?: ListQuarantineParams
+  ): Promise<MailcowQuarantineItem[]> {
     const response = await this.client.get<MailcowQuarantineItem[]>(
-      buildQuarantineEndpoint('list'),
+      buildQuarantineEndpoint(APIAction.LIST),
       { params }
     );
     return response;
@@ -33,34 +36,42 @@ export class QuarantineAPI {
    */
   async getQuarantineItem(id: string): Promise<MailcowQuarantineItem | null> {
     const items = await this.listQuarantineItems();
-    return items.find(item => item.id === id) || null;
+    return items.find((item) => item.id === id) || null;
   }
 
   /**
    * Get quarantined items by sender
    */
-  async getQuarantineItemsBySender(sender: string): Promise<MailcowQuarantineItem[]> {
+  async getQuarantineItemsBySender(
+    sender: string
+  ): Promise<MailcowQuarantineItem[]> {
     return this.listQuarantineItems({ sender });
   }
 
   /**
    * Get quarantined items by recipient
    */
-  async getQuarantineItemsByRecipient(recipient: string): Promise<MailcowQuarantineItem[]> {
+  async getQuarantineItemsByRecipient(
+    recipient: string
+  ): Promise<MailcowQuarantineItem[]> {
     return this.listQuarantineItems({ recipient });
   }
 
   /**
    * Get quarantined items by subject
    */
-  async getQuarantineItemsBySubject(subject: string): Promise<MailcowQuarantineItem[]> {
+  async getQuarantineItemsBySubject(
+    subject: string
+  ): Promise<MailcowQuarantineItem[]> {
     return this.listQuarantineItems({ subject });
   }
 
   /**
    * Get quarantined items by reason
    */
-  async getQuarantineItemsByReason(reason: string): Promise<MailcowQuarantineItem[]> {
+  async getQuarantineItemsByReason(
+    reason: string
+  ): Promise<MailcowQuarantineItem[]> {
     return this.listQuarantineItems({ reason });
   }
 
@@ -69,10 +80,10 @@ export class QuarantineAPI {
    */
   async releaseQuarantineItems(itemIds: string[]): Promise<boolean> {
     const response = await this.client.post<MailcowAPIResponse>(
-      buildQuarantineEndpoint('update'),
+      buildQuarantineEndpoint(APIAction.UPDATE),
       {
         action: 'release',
-        items: itemIds
+        items: itemIds,
       }
     );
     return response.success;
@@ -83,10 +94,10 @@ export class QuarantineAPI {
    */
   async deleteQuarantineItems(itemIds: string[]): Promise<boolean> {
     const response = await this.client.post<MailcowAPIResponse>(
-      buildQuarantineEndpoint('update'),
+      buildQuarantineEndpoint(APIAction.UPDATE),
       {
         action: 'delete',
-        items: itemIds
+        items: itemIds,
       }
     );
     return response.success;
@@ -97,10 +108,10 @@ export class QuarantineAPI {
    */
   async whitelistQuarantineItems(itemIds: string[]): Promise<boolean> {
     const response = await this.client.post<MailcowAPIResponse>(
-      buildQuarantineEndpoint('update'),
+      buildQuarantineEndpoint(APIAction.UPDATE),
       {
         action: 'whitelist',
-        items: itemIds
+        items: itemIds,
       }
     );
     return response.success;
@@ -111,10 +122,10 @@ export class QuarantineAPI {
    */
   async blacklistQuarantineItems(itemIds: string[]): Promise<boolean> {
     const response = await this.client.post<MailcowAPIResponse>(
-      buildQuarantineEndpoint('update'),
+      buildQuarantineEndpoint(APIAction.UPDATE),
       {
         action: 'blacklist',
-        items: itemIds
+        items: itemIds,
       }
     );
     return response.success;
@@ -151,22 +162,28 @@ export class QuarantineAPI {
   /**
    * Get quarantined items from a specific time range
    */
-  async getQuarantineItemsInTimeRange(startTime: Date, endTime: Date): Promise<MailcowQuarantineItem[]> {
-    return this.listQuarantineItems({ start_time: startTime, end_time: endTime });
+  async getQuarantineItemsInTimeRange(
+    startTime: Date,
+    endTime: Date
+  ): Promise<MailcowQuarantineItem[]> {
+    return this.listQuarantineItems({
+      start_time: startTime,
+      end_time: endTime,
+    });
   }
 
   /**
    * Get quarantined items from a specific sender in time range
    */
   async getQuarantineItemsBySenderInTimeRange(
-    sender: string, 
-    startTime: Date, 
+    sender: string,
+    startTime: Date,
     endTime: Date
   ): Promise<MailcowQuarantineItem[]> {
-    return this.listQuarantineItems({ 
-      sender, 
-      start_time: startTime, 
-      end_time: endTime 
+    return this.listQuarantineItems({
+      sender,
+      start_time: startTime,
+      end_time: endTime,
     });
   }
 
@@ -174,14 +191,14 @@ export class QuarantineAPI {
    * Get quarantined items for a specific recipient in time range
    */
   async getQuarantineItemsByRecipientInTimeRange(
-    recipient: string, 
-    startTime: Date, 
+    recipient: string,
+    startTime: Date,
     endTime: Date
   ): Promise<MailcowQuarantineItem[]> {
-    return this.listQuarantineItems({ 
-      recipient, 
-      start_time: startTime, 
-      end_time: endTime 
+    return this.listQuarantineItems({
+      recipient,
+      start_time: startTime,
+      end_time: endTime,
     });
   }
 
@@ -203,11 +220,11 @@ export class QuarantineAPI {
     bySender: Record<string, number>;
   }> {
     const items = await this.listQuarantineItems();
-    
+
     const byReason: Record<string, number> = {};
     const bySender: Record<string, number> = {};
-    
-    items.forEach(item => {
+
+    items.forEach((item) => {
       byReason[item.reason] = (byReason[item.reason] || 0) + 1;
       bySender[item.sender] = (bySender[item.sender] || 0) + 1;
     });
@@ -216,7 +233,7 @@ export class QuarantineAPI {
       totalItems: items.length,
       totalSize: items.reduce((total, item) => total + item.size, 0),
       byReason,
-      bySender
+      bySender,
     };
   }
 } 

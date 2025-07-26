@@ -12,6 +12,7 @@ import {
   MailcowAPIResponse 
 } from '../../types/mailcow';
 import { buildTLSPolicyEndpoint } from '../endpoints';
+import { APIAction } from '../../types/api';
 
 /**
  * TLS Policy API class for managing Mailcow TLS policies
@@ -22,9 +23,11 @@ export class TLSPolicyAPI {
   /**
    * List all TLS policies with optional filtering
    */
-  async listTLSPolicies(params?: ListTLSPolicyParams): Promise<MailcowTLSPolicy[]> {
+  async listTLSPolicies(
+    params?: ListTLSPolicyParams
+  ): Promise<MailcowTLSPolicy[]> {
     const response = await this.client.get<MailcowTLSPolicy[]>(
-      buildTLSPolicyEndpoint('list'),
+      buildTLSPolicyEndpoint(APIAction.LIST),
       { params }
     );
     return response;
@@ -35,15 +38,17 @@ export class TLSPolicyAPI {
    */
   async getTLSPolicy(domain: string): Promise<MailcowTLSPolicy | null> {
     const policies = await this.listTLSPolicies({ domain });
-    return policies.find(policy => policy.domain === domain) || null;
+    return policies.find((policy) => policy.domain === domain) || null;
   }
 
   /**
    * Create a new TLS policy
    */
-  async createTLSPolicy(policyData: CreateTLSPolicyRequest): Promise<MailcowTLSPolicy> {
+  async createTLSPolicy(
+    policyData: CreateTLSPolicyRequest
+  ): Promise<MailcowTLSPolicy> {
     const response = await this.client.post<MailcowTLSPolicy>(
-      buildTLSPolicyEndpoint('create'),
+      buildTLSPolicyEndpoint(APIAction.CREATE),
       policyData
     );
     return response;
@@ -52,9 +57,12 @@ export class TLSPolicyAPI {
   /**
    * Update an existing TLS policy
    */
-  async updateTLSPolicy(domain: string, policyData: UpdateTLSPolicyRequest): Promise<MailcowTLSPolicy> {
+  async updateTLSPolicy(
+    domain: string,
+    policyData: UpdateTLSPolicyRequest
+  ): Promise<MailcowTLSPolicy> {
     const response = await this.client.post<MailcowTLSPolicy>(
-      buildTLSPolicyEndpoint('update'),
+      buildTLSPolicyEndpoint(APIAction.UPDATE),
       { domain, ...policyData }
     );
     return response;
@@ -65,7 +73,7 @@ export class TLSPolicyAPI {
    */
   async deleteTLSPolicy(domain: string): Promise<boolean> {
     const response = await this.client.post<MailcowAPIResponse>(
-      buildTLSPolicyEndpoint('delete'),
+      buildTLSPolicyEndpoint(APIAction.DELETE),
       { domain }
     );
     return response.success;
@@ -89,8 +97,16 @@ export class TLSPolicyAPI {
    * Update TLS policy type
    */
   async updateTLSPolicyType(
-    domain: string, 
-    policy: 'none' | 'may' | 'encrypt' | 'dane' | 'dane-only' | 'fingerprint' | 'verify' | 'secure'
+    domain: string,
+    policy:
+      | 'none'
+      | 'may'
+      | 'encrypt'
+      | 'dane'
+      | 'dane-only'
+      | 'fingerprint'
+      | 'verify'
+      | 'secure'
   ): Promise<MailcowTLSPolicy> {
     return this.updateTLSPolicy(domain, { policy });
   }
@@ -98,7 +114,10 @@ export class TLSPolicyAPI {
   /**
    * Update TLS policy parameters
    */
-  async updateTLSPolicyParameters(domain: string, parameters: Record<string, unknown>): Promise<MailcowTLSPolicy> {
+  async updateTLSPolicyParameters(
+    domain: string,
+    parameters: Record<string, unknown>
+  ): Promise<MailcowTLSPolicy> {
     return this.updateTLSPolicy(domain, { parameters });
   }
 
@@ -120,7 +139,15 @@ export class TLSPolicyAPI {
    * Get TLS policies by policy type
    */
   async getTLSPoliciesByType(
-    policy: 'none' | 'may' | 'encrypt' | 'dane' | 'dane-only' | 'fingerprint' | 'verify' | 'secure'
+    policy:
+      | 'none'
+      | 'may'
+      | 'encrypt'
+      | 'dane'
+      | 'dane-only'
+      | 'fingerprint'
+      | 'verify'
+      | 'secure'
   ): Promise<MailcowTLSPolicy[]> {
     return this.listTLSPolicies({ policy });
   }
@@ -144,9 +171,16 @@ export class TLSPolicyAPI {
    */
   validateTLSPolicy(policy: MailcowTLSPolicy): boolean {
     const validPolicies = [
-      'none', 'may', 'encrypt', 'dane', 'dane-only', 'fingerprint', 'verify', 'secure'
+      'none',
+      'may',
+      'encrypt',
+      'dane',
+      'dane-only',
+      'fingerprint',
+      'verify',
+      'secure',
     ];
-    
+
     return (
       policy.domain.length > 0 &&
       validPolicies.includes(policy.policy) &&
@@ -159,16 +193,16 @@ export class TLSPolicyAPI {
    */
   getTLSPolicyDescription(policy: MailcowTLSPolicy): string {
     const descriptions: Record<string, string> = {
-      'none': 'No TLS enforcement',
-      'may': 'Opportunistic TLS',
-      'encrypt': 'Require TLS encryption',
-      'dane': 'DANE verification',
+      none: 'No TLS enforcement',
+      may: 'Opportunistic TLS',
+      encrypt: 'Require TLS encryption',
+      dane: 'DANE verification',
       'dane-only': 'DANE verification only',
-      'fingerprint': 'Certificate fingerprint verification',
-      'verify': 'Certificate verification',
-      'secure': 'Secure TLS configuration'
+      fingerprint: 'Certificate fingerprint verification',
+      verify: 'Certificate verification',
+      secure: 'Secure TLS configuration',
     };
-    
+
     return descriptions[policy.policy] || 'Unknown policy type';
   }
 
@@ -176,7 +210,14 @@ export class TLSPolicyAPI {
    * Check if TLS policy is secure
    */
   isSecureTLSPolicy(policy: MailcowTLSPolicy): boolean {
-    const securePolicies = ['encrypt', 'dane', 'dane-only', 'fingerprint', 'verify', 'secure'];
+    const securePolicies = [
+      'encrypt',
+      'dane',
+      'dane-only',
+      'fingerprint',
+      'verify',
+      'secure',
+    ];
     return securePolicies.includes(policy.policy);
   }
 } 

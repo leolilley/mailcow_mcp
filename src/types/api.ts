@@ -253,3 +253,15 @@ export type RequestOptionsPartial = Partial<RequestOptions>;
 export type APIClientConfigPartial = Partial<APIClientConfig>;
 export type RetryConfigPartial = Partial<RetryConfig>;
 export type ApiRateLimitConfigPartial = Partial<ApiRateLimitConfig>; 
+
+// API Action Types
+export enum APIAction {
+  LIST = 'list',
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  GET = 'get',
+  FLUSH = 'flush',
+  HOLD = 'hold',
+  RELEASE = 'release',
+}

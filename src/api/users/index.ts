@@ -12,6 +12,7 @@ import {
   MailcowAPIResponse 
 } from '../../types/mailcow';
 import { buildUserEndpoint } from '../endpoints';
+import { APIAction } from '../../types/api';
 
 /**
  * Users API class for managing Mailcow users
@@ -24,7 +25,7 @@ export class UsersAPI {
    */
   async listUsers(params?: ListUsersParams): Promise<MailcowUser[]> {
     const response = await this.client.get<MailcowUser[]>(
-      buildUserEndpoint('list'),
+      buildUserEndpoint(APIAction.LIST),
       { params }
     );
     return response;
@@ -35,7 +36,7 @@ export class UsersAPI {
    */
   async getUser(username: string): Promise<MailcowUser | null> {
     const users = await this.listUsers({ username });
-    return users.find(user => user.username === username) || null;
+    return users.find((user) => user.username === username) || null;
   }
 
   /**
@@ -50,7 +51,7 @@ export class UsersAPI {
    */
   async createUser(userData: CreateUserRequest): Promise<MailcowUser> {
     const response = await this.client.post<MailcowUser>(
-      buildUserEndpoint('create'),
+      buildUserEndpoint(APIAction.CREATE),
       userData
     );
     return response;
@@ -59,9 +60,12 @@ export class UsersAPI {
   /**
    * Update an existing user
    */
-  async updateUser(username: string, userData: UpdateUserRequest): Promise<MailcowUser> {
+  async updateUser(
+    username: string,
+    userData: UpdateUserRequest
+  ): Promise<MailcowUser> {
     const response = await this.client.post<MailcowUser>(
-      buildUserEndpoint('update'),
+      buildUserEndpoint(APIAction.UPDATE),
       { username, ...userData }
     );
     return response;
@@ -72,7 +76,7 @@ export class UsersAPI {
    */
   async deleteUser(username: string): Promise<boolean> {
     const response = await this.client.post<MailcowAPIResponse>(
-      buildUserEndpoint('delete'),
+      buildUserEndpoint(APIAction.DELETE),
       { username }
     );
     return response.success;
@@ -102,7 +106,10 @@ export class UsersAPI {
   /**
    * Change user password
    */
-  async changeUserPassword(username: string, password: string): Promise<MailcowUser> {
+  async changeUserPassword(
+    username: string,
+    password: string
+  ): Promise<MailcowUser> {
     return this.updateUser(username, { password });
   }
 

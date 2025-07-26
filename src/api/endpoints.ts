@@ -3,6 +3,8 @@
  * Defines the actual Mailcow API endpoint patterns used throughout the application
  */
 
+import { APIAction } from '../types/api';
+
 // Mailcow uses action-based endpoints, not RESTful patterns
 export const API_ENDPOINTS = {
   // Domain endpoints
@@ -111,162 +113,201 @@ export const API_ENDPOINTS = {
     CREATE: '/api/v1/add/backup',
     UPDATE: '/api/v1/edit/backup',
   },
+
+  // Jobs endpoints (sync jobs)
+  SYNCJOBS: {
+    LIST: '/api/v1/get/syncjob',
+    CREATE: '/api/v1/add/syncjob',
+    UPDATE: '/api/v1/edit/syncjob',
+    DELETE: '/api/v1/delete/syncjob',
+  },
+
+  // Queue endpoints (mail queue)
+  QUEUE: {
+    LIST: '/api/v1/get/mailq',
+    FLUSH: '/api/v1/edit/mailq',
+    DELETE: '/api/v1/delete/mailq',
+  },
 };
 
 // Helper functions for building endpoint URLs
-export function buildDomainEndpoint(action: 'list' | 'create' | 'update' | 'delete'): string {
+export function buildDomainEndpoint(action: APIAction): string {
   switch (action) {
-    case 'list': return API_ENDPOINTS.DOMAINS.LIST;
-    case 'create': return API_ENDPOINTS.DOMAINS.CREATE;
-    case 'update': return API_ENDPOINTS.DOMAINS.UPDATE;
-    case 'delete': return API_ENDPOINTS.DOMAINS.DELETE;
-    default: throw new Error(`Unknown domain action: ${action}`);
+    case APIAction.LIST:
+      return API_ENDPOINTS.DOMAINS.LIST;
+    case APIAction.CREATE:
+      return API_ENDPOINTS.DOMAINS.CREATE;
+    case APIAction.UPDATE:
+      return API_ENDPOINTS.DOMAINS.UPDATE;
+    case APIAction.DELETE:
+      return API_ENDPOINTS.DOMAINS.DELETE;
+    default:
+      throw new Error(`Unknown domain action: ${action}`);
   }
 }
 
-export function buildMailboxEndpoint(action: 'list' | 'create' | 'update' | 'delete'): string {
+export function buildMailboxEndpoint(action: APIAction): string {
   switch (action) {
-    case 'list': return API_ENDPOINTS.MAILBOXES.LIST;
-    case 'create': return API_ENDPOINTS.MAILBOXES.CREATE;
-    case 'update': return API_ENDPOINTS.MAILBOXES.UPDATE;
-    case 'delete': return API_ENDPOINTS.MAILBOXES.DELETE;
-    default: throw new Error(`Unknown mailbox action: ${action}`);
+    case APIAction.LIST:
+      return API_ENDPOINTS.MAILBOXES.LIST;
+    case APIAction.CREATE:
+      return API_ENDPOINTS.MAILBOXES.CREATE;
+    case APIAction.UPDATE:
+      return API_ENDPOINTS.MAILBOXES.UPDATE;
+    case APIAction.DELETE:
+      return API_ENDPOINTS.MAILBOXES.DELETE;
+    default:
+      throw new Error(`Unknown mailbox action: ${action}`);
   }
 }
 
-export function buildAliasEndpoint(
-  action: 'list' | 'create' | 'update' | 'delete'
-): string {
+export function buildAliasEndpoint(action: APIAction): string {
   switch (action) {
-    case 'list':
+    case APIAction.LIST:
       return API_ENDPOINTS.ALIASES.LIST;
-    case 'create':
+    case APIAction.CREATE:
       return API_ENDPOINTS.ALIASES.CREATE;
-    case 'update':
+    case APIAction.UPDATE:
       return API_ENDPOINTS.ALIASES.UPDATE;
-    case 'delete':
+    case APIAction.DELETE:
       return API_ENDPOINTS.ALIASES.DELETE;
     default:
       throw new Error(`Unknown alias action: ${action}`);
   }
 }
 
-export function buildUserEndpoint(
-  action: 'list' | 'create' | 'update' | 'delete'
-): string {
+export function buildUserEndpoint(action: APIAction): string {
   switch (action) {
-    case 'list':
+    case APIAction.LIST:
       return API_ENDPOINTS.USERS.LIST;
-    case 'create':
+    case APIAction.CREATE:
       return API_ENDPOINTS.USERS.CREATE;
-    case 'update':
+    case APIAction.UPDATE:
       return API_ENDPOINTS.USERS.UPDATE;
-    case 'delete':
+    case APIAction.DELETE:
       return API_ENDPOINTS.USERS.DELETE;
     default:
       throw new Error(`Unknown user action: ${action}`);
   }
 }
 
-export function buildDKIMEndpoint(
-  action: 'list' | 'create' | 'update' | 'delete'
-): string {
+export function buildDKIMEndpoint(action: APIAction): string {
   switch (action) {
-    case 'list':
+    case APIAction.LIST:
       return API_ENDPOINTS.DKIM.LIST;
-    case 'create':
+    case APIAction.CREATE:
       return API_ENDPOINTS.DKIM.CREATE;
-    case 'update':
+    case APIAction.UPDATE:
       return API_ENDPOINTS.DKIM.UPDATE;
-    case 'delete':
+    case APIAction.DELETE:
       return API_ENDPOINTS.DKIM.DELETE;
     default:
       throw new Error(`Unknown DKIM action: ${action}`);
   }
 }
 
-export function buildQuarantineEndpoint(action: 'list' | 'update'): string {
+export function buildQuarantineEndpoint(action: APIAction): string {
   switch (action) {
-    case 'list':
+    case APIAction.LIST:
       return API_ENDPOINTS.QUARANTINE.LIST;
-    case 'update':
+    case APIAction.UPDATE:
       return API_ENDPOINTS.QUARANTINE.UPDATE;
     default:
       throw new Error(`Unknown quarantine action: ${action}`);
   }
 }
 
-export function buildTLSPolicyEndpoint(
-  action: 'list' | 'create' | 'update' | 'delete'
-): string {
+export function buildTLSPolicyEndpoint(action: APIAction): string {
   switch (action) {
-    case 'list':
+    case APIAction.LIST:
       return API_ENDPOINTS.TLS_POLICY.LIST;
-    case 'create':
+    case APIAction.CREATE:
       return API_ENDPOINTS.TLS_POLICY.CREATE;
-    case 'update':
+    case APIAction.UPDATE:
       return API_ENDPOINTS.TLS_POLICY.UPDATE;
-    case 'delete':
+    case APIAction.DELETE:
       return API_ENDPOINTS.TLS_POLICY.DELETE;
     default:
       throw new Error(`Unknown TLS policy action: ${action}`);
   }
 }
 
-export function buildOAuth2Endpoint(
-  action: 'list' | 'create' | 'update' | 'delete'
-): string {
+export function buildOAuth2Endpoint(action: APIAction): string {
   switch (action) {
-    case 'list':
+    case APIAction.LIST:
       return API_ENDPOINTS.OAUTH2.LIST;
-    case 'create':
+    case APIAction.CREATE:
       return API_ENDPOINTS.OAUTH2.CREATE;
-    case 'update':
+    case APIAction.UPDATE:
       return API_ENDPOINTS.OAUTH2.UPDATE;
-    case 'delete':
+    case APIAction.DELETE:
       return API_ENDPOINTS.OAUTH2.DELETE;
     default:
       throw new Error(`Unknown OAuth2 action: ${action}`);
   }
 }
 
-export function buildAppPasswdEndpoint(
-  action: 'list' | 'create' | 'delete'
-): string {
+export function buildAppPasswdEndpoint(action: APIAction): string {
   switch (action) {
-    case 'list':
+    case APIAction.LIST:
       return API_ENDPOINTS.APP_PASSWD.LIST;
-    case 'create':
+    case APIAction.CREATE:
       return API_ENDPOINTS.APP_PASSWD.CREATE;
-    case 'delete':
+    case APIAction.DELETE:
       return API_ENDPOINTS.APP_PASSWD.DELETE;
     default:
       throw new Error(`Unknown app password action: ${action}`);
   }
 }
 
-export function buildRspamdEndpoint(action: 'get' | 'update'): string {
+export function buildRspamdEndpoint(action: APIAction): string {
   switch (action) {
-    case 'get':
+    case APIAction.GET:
       return API_ENDPOINTS.RSPAMD.GET;
-    case 'update':
+    case APIAction.UPDATE:
       return API_ENDPOINTS.RSPAMD.UPDATE;
     default:
       throw new Error(`Unknown Rspamd action: ${action}`);
   }
 }
 
-export function buildBackupEndpoint(
-  action: 'get' | 'create' | 'update'
-): string {
+export function buildBackupEndpoint(action: APIAction): string {
   switch (action) {
-    case 'get':
+    case APIAction.GET:
       return API_ENDPOINTS.BACKUP.GET;
-    case 'create':
+    case APIAction.CREATE:
       return API_ENDPOINTS.BACKUP.CREATE;
-    case 'update':
+    case APIAction.UPDATE:
       return API_ENDPOINTS.BACKUP.UPDATE;
     default:
       throw new Error(`Unknown backup action: ${action}`);
+  }
+}
+
+export function buildSyncJobEndpoint(action: APIAction): string {
+  switch (action) {
+    case APIAction.LIST:
+      return API_ENDPOINTS.SYNCJOBS.LIST;
+    case APIAction.CREATE:
+      return API_ENDPOINTS.SYNCJOBS.CREATE;
+    case APIAction.UPDATE:
+      return API_ENDPOINTS.SYNCJOBS.UPDATE;
+    case APIAction.DELETE:
+      return API_ENDPOINTS.SYNCJOBS.DELETE;
+    default:
+      throw new Error(`Unknown job action: ${action}`);
+  }
+}
+
+export function buildQueueEndpoint(action: APIAction): string {
+  switch (action) {
+    case APIAction.LIST:
+      return API_ENDPOINTS.QUEUE.LIST;
+    case APIAction.FLUSH:
+      return API_ENDPOINTS.QUEUE.FLUSH;
+    case APIAction.DELETE:
+      return API_ENDPOINTS.QUEUE.DELETE;
+    default:
+      throw new Error(`Unknown queue action: ${action}`);
   }
 } 

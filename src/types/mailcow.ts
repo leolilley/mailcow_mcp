@@ -632,4 +632,78 @@ export type ListTLSPolicyParams = TLSPolicyFilter & PaginationParams;
 export type ListOAuth2Params = OAuth2Filter & PaginationParams;
 export type ListAppPasswordsParams = AppPasswordFilter & PaginationParams;
 export type ListResourcesParams = PaginationParams;
-export type ListLogsParams = LogFilter & PaginationParams; 
+export type ListLogsParams = LogFilter & PaginationParams;
+
+// Job Types (Sync Jobs)
+export interface MailcowSyncJob {
+  id: number;
+  username: string;
+  host: string;
+  port: number;
+  user: string;
+  password: string;
+  encryption: 'tls' | 'ssl' | 'plain';
+  maxage: number;
+  maxbytespersecond: number;
+  timeout: number;
+  active: boolean;
+  created: Date;
+  modified: Date;
+  attributes?: Record<string, unknown>;
+}
+
+export interface CreateSyncJobRequest {
+  username: string;
+  host: string;
+  port: number;
+  user: string;
+  password: string;
+  encryption: 'tls' | 'ssl' | 'plain';
+  maxage?: number;
+  maxbytespersecond?: number;
+  timeout?: number;
+  active?: boolean;
+}
+
+export interface UpdateSyncJobRequest {
+  host?: string;
+  port?: number;
+  user?: string;
+  password?: string;
+  encryption?: 'tls' | 'ssl' | 'plain';
+  maxage?: number;
+  maxbytespersecond?: number;
+  timeout?: number;
+  active?: boolean;
+}
+
+// Queue Types (Mail Queue)
+export interface MailcowQueueItem {
+  id: string;
+  sender: string;
+  recipient: string;
+  subject: string;
+  size: number;
+  timestamp: Date;
+  status: 'active' | 'deferred' | 'hold';
+  attempts: number;
+  next_attempt?: Date;
+  error_message?: string;
+}
+
+export interface QueueFilter {
+  sender?: string;
+  recipient?: string;
+  status?: 'active' | 'deferred' | 'hold';
+  start_time?: Date;
+  end_time?: Date;
+}
+
+export interface QueueAction {
+  action: 'flush' | 'delete';
+  items?: string[];
+}
+
+// Type aliases for consistency
+export type ListSyncJobsParams = QueueFilter & PaginationParams;
+export type ListQueueParams = QueueFilter & PaginationParams; 
