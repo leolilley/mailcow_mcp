@@ -1,10 +1,10 @@
 // @ts-ignore: Node.js fs import for file logging
 import * as fs from 'fs';
 import { LogEntry } from '../types';
-import { LogLevel } from '../types/utils';
+import { UtilLogLevel } from '../types/utils';
 
 export interface LoggerConfig {
-  level: LogLevel;
+  level: UtilLogLevel;
   filePath?: string;
 }
 
@@ -31,41 +31,43 @@ export class FileLogDestination implements LogDestination {
   }
 }
 
-export class Logger {
+import { Logger as ILogger } from '../types/utils';
+
+export class Logger implements ILogger {
   constructor(
     private config: LoggerConfig,
     private destination: LogDestination
   ) {}
 
-  private shouldLog(level: LogLevel): boolean {
+  private shouldLog(level: UtilLogLevel): boolean {
     const levels = ['debug', 'info', 'warn', 'error'];
     return (
       levels.indexOf(level) >= levels.indexOf(this.config.level)
     );
   }
 
-  log(level: LogLevel, message: string, context?: Record<string, unknown>): void {
+  log(level: UtilLogLevel, message: string, ...args: unknown[]): void {
     const entry: LogEntry = {
       timestamp: new Date(),
       level,
       message,
-      args: context ? [context] : [],
+      args,
     };
     if (this.shouldLog(level)) {
       this.destination.write(entry);
     }
   }
 
-  debug(message: string, context?: Record<string, unknown>): void {
-    this.log(LogLevel.DEBUG, message, context);
+  debug(message: string, ...args: unknown[]): void {
+    this.log('debug', message, ...args);
   }
-  info(message: string, context?: Record<string, unknown>): void {
-    this.log(LogLevel.INFO, message, context);
+  info(message: string, ...args: unknown[]): void {
+    this.log('info', message, ...args);
   }
-  warn(message: string, context?: Record<string, unknown>): void {
-    this.log(LogLevel.WARN, message, context);
+  warn(message: string, ...args: unknown[]): void {
+    this.log('warn', message, ...args);
   }
-  error(message: string, error?: Error, context?: Record<string, unknown>): void {
-    this.log(LogLevel.ERROR, error ? `${message}: ${error.message}` : message, { ...context, error });
+  error(message: string, ...args: unknown[]): void {
+    this.log('error', message, ...args);
   }
 } 

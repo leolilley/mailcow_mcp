@@ -7,11 +7,18 @@
   "scripts": {
     "build": "tsc",
     "dev": "ts-node src/index.ts",
-    "start": "node dist/index.js",
+    "start": "node dist/src/index.js",
     "test": "jest",
+    "test:unit": "jest tests/unit",
+    "test:integration": "node tests/integration/server-startup.test.js",
+    "test:coverage": "jest --coverage",
+    "test:coverage:open": "npm run test:coverage && npm run coverage:open",
+    "coverage:open": "node scripts/open-coverage.js",
+    "test:coverage:view": "./scripts/view-coverage.sh",
+    "test:all": "npm run test:unit && npm run build && npm run test:integration",
     "lint": "eslint src/**/*.ts",
     "format": "prettier --write src/**/*.ts",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist coverage"
   },
   "keywords": [
     "mcp",
