@@ -25,6 +25,13 @@ import { UserTools } from './tools/users/index.js';
 import { UsersAPI } from './api/users/index.js';
 import { DKIMTools } from './tools/dkim/index.js';
 import { DKIMAPI } from './api/dkim/index.js';
+import { QueueTools } from './tools/queues/index.js';
+import { QueuesAPI } from './api/queues/index.js';
+import { SyncJobTools } from './tools/jobs/index.js';
+import { JobsAPI } from './api/syncjobs/index.js';
+import { LogTools } from './tools/logs/index.js';
+import { LogsAPI } from './api/logs/index.js';
+import { EmailTools } from './tools/email/index.js';
 // import { AliasTools } from './tools/aliases/index.js';
 
 /**
@@ -375,6 +382,18 @@ class MailcowMCPServer {
     // Register DKIM tools
     await this.registerDKIMTools();
     
+    // Register queue tools
+    await this.registerQueueTools();
+    
+    // Register sync job tools
+    await this.registerSyncJobTools();
+    
+    // Register log tools
+    await this.registerLogTools();
+    
+    // Register email tools
+    await this.registerEmailTools();
+    
     // TODO: Register alias tools when implemented
     // await this.registerAliasTools();
   }
@@ -703,6 +722,335 @@ class MailcowMCPServer {
 
     } catch (error) {
       this.logger.error('Failed to register DKIM tools', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Register queue management tools
+   */
+  private async registerQueueTools(): Promise<void> {
+    if (!this.apiClient) {
+      this.logger.warn('API client not available - skipping queue tools registration');
+      return;
+    }
+
+    try {
+      // Create queues API instance
+      const queuesAPI = new QueuesAPI(this.apiClient);
+
+      // Create and register queue tools
+      const listTool = new QueueTools.ListQueueItemsTool(this.logger, queuesAPI);
+      const getTool = new QueueTools.GetQueueItemTool(this.logger, queuesAPI);
+      const flushTool = new QueueTools.FlushQueueTool(this.logger, queuesAPI);
+      const deleteTool = new QueueTools.DeleteQueueItemsTool(this.logger, queuesAPI);
+      const holdTool = new QueueTools.HoldQueueItemTool(this.logger, queuesAPI);
+      const releaseTool = new QueueTools.ReleaseQueueItemTool(this.logger, queuesAPI);
+
+      // Register tools with the registry
+      this.toolRegistry.register({
+        name: listTool.name,
+        description: listTool.description,
+        inputSchema: listTool.inputSchema,
+      });
+
+      this.toolRegistry.register({
+        name: getTool.name,
+        description: getTool.description,
+        inputSchema: getTool.inputSchema,
+      });
+
+      this.toolRegistry.register({
+        name: flushTool.name,
+        description: flushTool.description,
+        inputSchema: flushTool.inputSchema,
+      });
+
+      this.toolRegistry.register({
+        name: deleteTool.name,
+        description: deleteTool.description,
+        inputSchema: deleteTool.inputSchema,
+      });
+
+      this.toolRegistry.register({
+        name: holdTool.name,
+        description: holdTool.description,
+        inputSchema: holdTool.inputSchema,
+      });
+
+      this.toolRegistry.register({
+        name: releaseTool.name,
+        description: releaseTool.description,
+        inputSchema: releaseTool.inputSchema,
+      });
+
+      // Register tool handlers
+      this.toolRegistry.registerHandler(listTool.name, async (input, context) => {
+        return await listTool.execute(input, context);
+      });
+
+      this.toolRegistry.registerHandler(getTool.name, async (input, context) => {
+        return await getTool.execute(input, context);
+      });
+
+      this.toolRegistry.registerHandler(flushTool.name, async (input, context) => {
+        return await flushTool.execute(input, context);
+      });
+
+      this.toolRegistry.registerHandler(deleteTool.name, async (input, context) => {
+        return await deleteTool.execute(input, context);
+      });
+
+      this.toolRegistry.registerHandler(holdTool.name, async (input, context) => {
+        return await holdTool.execute(input, context);
+      });
+
+      this.toolRegistry.registerHandler(releaseTool.name, async (input, context) => {
+        return await releaseTool.execute(input, context);
+      });
+
+      this.logger.info('Queue tools registered successfully', {
+        tools: [listTool.name, getTool.name, flushTool.name, deleteTool.name, holdTool.name, releaseTool.name]
+      });
+
+    } catch (error) {
+      this.logger.error('Failed to register queue tools', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Register sync job management tools
+   */
+  private async registerSyncJobTools(): Promise<void> {
+    if (!this.apiClient) {
+      this.logger.warn('API client not available - skipping sync job tools registration');
+      return;
+    }
+
+    try {
+      // Create jobs API instance
+      const jobsAPI = new JobsAPI(this.apiClient);
+
+      // Create and register sync job tools
+      const listTool = new SyncJobTools.ListSyncJobsTool(this.logger, jobsAPI);
+      const getTool = new SyncJobTools.GetSyncJobTool(this.logger, jobsAPI);
+      const createTool = new SyncJobTools.CreateSyncJobTool(this.logger, jobsAPI);
+      const updateTool = new SyncJobTools.UpdateSyncJobTool(this.logger, jobsAPI);
+      const deleteTool = new SyncJobTools.DeleteSyncJobTool(this.logger, jobsAPI);
+      const activateTool = new SyncJobTools.ActivateSyncJobTool(this.logger, jobsAPI);
+      const deactivateTool = new SyncJobTools.DeactivateSyncJobTool(this.logger, jobsAPI);
+
+      // Register tools with the registry
+      this.toolRegistry.register({
+        name: listTool.name,
+        description: listTool.description,
+        inputSchema: listTool.inputSchema,
+      });
+
+      this.toolRegistry.register({
+        name: getTool.name,
+        description: getTool.description,
+        inputSchema: getTool.inputSchema,
+      });
+
+      this.toolRegistry.register({
+        name: createTool.name,
+        description: createTool.description,
+        inputSchema: createTool.inputSchema,
+      });
+
+      this.toolRegistry.register({
+        name: updateTool.name,
+        description: updateTool.description,
+        inputSchema: updateTool.inputSchema,
+      });
+
+      this.toolRegistry.register({
+        name: deleteTool.name,
+        description: deleteTool.description,
+        inputSchema: deleteTool.inputSchema,
+      });
+
+      this.toolRegistry.register({
+        name: activateTool.name,
+        description: activateTool.description,
+        inputSchema: activateTool.inputSchema,
+      });
+
+      this.toolRegistry.register({
+        name: deactivateTool.name,
+        description: deactivateTool.description,
+        inputSchema: deactivateTool.inputSchema,
+      });
+
+      // Register tool handlers
+      this.toolRegistry.registerHandler(listTool.name, async (input, context) => {
+        return await listTool.execute(input, context);
+      });
+
+      this.toolRegistry.registerHandler(getTool.name, async (input, context) => {
+        return await getTool.execute(input, context);
+      });
+
+      this.toolRegistry.registerHandler(createTool.name, async (input, context) => {
+        return await createTool.execute(input, context);
+      });
+
+      this.toolRegistry.registerHandler(updateTool.name, async (input, context) => {
+        return await updateTool.execute(input, context);
+      });
+
+      this.toolRegistry.registerHandler(deleteTool.name, async (input, context) => {
+        return await deleteTool.execute(input, context);
+      });
+
+      this.toolRegistry.registerHandler(activateTool.name, async (input, context) => {
+        return await activateTool.execute(input, context);
+      });
+
+      this.toolRegistry.registerHandler(deactivateTool.name, async (input, context) => {
+        return await deactivateTool.execute(input, context);
+      });
+
+      this.logger.info('Sync job tools registered successfully', {
+        tools: [listTool.name, getTool.name, createTool.name, updateTool.name, deleteTool.name, activateTool.name, deactivateTool.name]
+      });
+
+    } catch (error) {
+      this.logger.error('Failed to register sync job tools', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Register log management tools
+   */
+  private async registerLogTools(): Promise<void> {
+    if (!this.apiClient) {
+      this.logger.warn('API client not available - skipping log tools registration');
+      return;
+    }
+
+    try {
+      // Create logs API instance
+      const logsAPI = new LogsAPI(this.apiClient);
+
+      // Create and register log tools
+      const getTool = new LogTools.GetLogsTool(this.logger, logsAPI);
+      const getErrorTool = new LogTools.GetErrorLogsTool(this.logger, logsAPI);
+      const getPerfTool = new LogTools.GetPerformanceLogsTool(this.logger, logsAPI);
+      const getAccessTool = new LogTools.GetAccessLogsTool(this.logger, logsAPI);
+
+      // Register tools with the registry
+      this.toolRegistry.register({
+        name: getTool.name,
+        description: getTool.description,
+        inputSchema: getTool.inputSchema,
+      });
+
+      this.toolRegistry.register({
+        name: getErrorTool.name,
+        description: getErrorTool.description,
+        inputSchema: getErrorTool.inputSchema,
+      });
+
+      this.toolRegistry.register({
+        name: getPerfTool.name,
+        description: getPerfTool.description,
+        inputSchema: getPerfTool.inputSchema,
+      });
+
+      this.toolRegistry.register({
+        name: getAccessTool.name,
+        description: getAccessTool.description,
+        inputSchema: getAccessTool.inputSchema,
+      });
+
+      // Register tool handlers
+      this.toolRegistry.registerHandler(getTool.name, async (input, context) => {
+        return await getTool.execute(input, context);
+      });
+
+      this.toolRegistry.registerHandler(getErrorTool.name, async (input, context) => {
+        return await getErrorTool.execute(input, context);
+      });
+
+      this.toolRegistry.registerHandler(getPerfTool.name, async (input, context) => {
+        return await getPerfTool.execute(input, context);
+      });
+
+      this.toolRegistry.registerHandler(getAccessTool.name, async (input, context) => {
+        return await getAccessTool.execute(input, context);
+      });
+
+      this.logger.info('Log tools registered successfully', {
+        tools: [getTool.name, getErrorTool.name, getPerfTool.name, getAccessTool.name]
+      });
+
+    } catch (error) {
+      this.logger.error('Failed to register log tools', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Register email management tools
+   */
+  private async registerEmailTools(): Promise<void> {
+    if (!this.apiClient) {
+      this.logger.warn('API client not available - skipping email tools registration');
+      return;
+    }
+
+    try {
+      // Create API instances needed for email tools
+      const queuesAPI = new QueuesAPI(this.apiClient);
+      const logsAPI = new LogsAPI(this.apiClient);
+
+      // Create and register email tools
+      const sendTool = new EmailTools.SendEmailTool(this.logger, queuesAPI, logsAPI);
+      const statusTool = new EmailTools.CheckEmailStatusTool(this.logger, queuesAPI, logsAPI);
+      const templateTool = new EmailTools.GetEmailTemplatesTool(this.logger);
+
+      // Register tools with the registry
+      this.toolRegistry.register({
+        name: sendTool.name,
+        description: sendTool.description,
+        inputSchema: sendTool.inputSchema,
+      });
+
+      this.toolRegistry.register({
+        name: statusTool.name,
+        description: statusTool.description,
+        inputSchema: statusTool.inputSchema,
+      });
+
+      this.toolRegistry.register({
+        name: templateTool.name,
+        description: templateTool.description,
+        inputSchema: templateTool.inputSchema,
+      });
+
+      // Register tool handlers
+      this.toolRegistry.registerHandler(sendTool.name, async (input, context) => {
+        return await sendTool.execute(input, context);
+      });
+
+      this.toolRegistry.registerHandler(statusTool.name, async (input, context) => {
+        return await statusTool.execute(input, context);
+      });
+
+      this.toolRegistry.registerHandler(templateTool.name, async (input, context) => {
+        return await templateTool.execute(input, context);
+      });
+
+      this.logger.info('Email tools registered successfully', {
+        tools: [sendTool.name, statusTool.name, templateTool.name]
+      });
+
+    } catch (error) {
+      this.logger.error('Failed to register email tools', error);
       throw error;
     }
   }
