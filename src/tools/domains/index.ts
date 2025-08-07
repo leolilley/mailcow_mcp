@@ -22,7 +22,8 @@ import { Logger } from '../../utils';
  */
 export class ListDomainsTool extends BaseTool {
   readonly name = 'list_domains';
-  readonly description = 'List all domains in the Mailcow server with optional filtering';
+  readonly description =
+    'List all domains in the Mailcow server with optional filtering';
   readonly inputSchema = {
     type: 'object' as const,
     properties: {
@@ -44,7 +45,10 @@ export class ListDomainsTool extends BaseTool {
     additionalProperties: false,
   };
 
-  constructor(logger: Logger, private domainAPI: DomainAPI) {
+  constructor(
+    logger: Logger,
+    private domainAPI: DomainAPI
+  ) {
     super(logger, {
       category: ToolCategory.DOMAIN,
       version: '1.0.0',
@@ -53,7 +57,10 @@ export class ListDomainsTool extends BaseTool {
     });
   }
 
-  async execute(input: ToolInput, context: ToolContext): Promise<ToolHandlerResult> {
+  async execute(
+    input: ToolInput,
+    context: ToolContext
+  ): Promise<ToolHandlerResult> {
     try {
       this.logExecution(input, context, true);
 
@@ -75,7 +82,7 @@ export class ListDomainsTool extends BaseTool {
           success: false,
           error: {
             code: MCPErrorCode.INVALID_PARAMS,
-            message: `Input validation failed: ${validation.errors.map(e => e.message).join(', ')}`,
+            message: `Input validation failed: ${validation.errors.map((e) => e.message).join(', ')}`,
           },
         };
       }
@@ -89,18 +96,25 @@ export class ListDomainsTool extends BaseTool {
       let filteredDomains = domains;
 
       if (active_only) {
-        filteredDomains = filteredDomains.filter(domain => domain.active);
+        filteredDomains = filteredDomains.filter(
+          (domain) => domain.active === 1
+        );
       }
 
       if (search && typeof search === 'string') {
         const searchLower = search.toLowerCase();
-        filteredDomains = filteredDomains.filter(domain =>
-          domain.domain.toLowerCase().includes(searchLower) ||
-          domain.description?.toLowerCase().includes(searchLower)
+        filteredDomains = filteredDomains.filter(
+          (domain) =>
+            domain.domain_name.toLowerCase().includes(searchLower) ||
+            domain.description?.toLowerCase().includes(searchLower)
         );
       }
 
-      if (typeof limit === 'number' && limit > 0 && limit < filteredDomains.length) {
+      if (
+        typeof limit === 'number' &&
+        limit > 0 &&
+        limit < filteredDomains.length
+      ) {
         filteredDomains = filteredDomains.slice(0, limit);
       }
 
@@ -108,17 +122,22 @@ export class ListDomainsTool extends BaseTool {
       const summary = {
         total_domains: domains.length,
         filtered_domains: filteredDomains.length,
-        active_domains: domains.filter(d => d.active).length,
-        inactive_domains: domains.filter(d => !d.active).length,
-        domains: filteredDomains.map(domain => ({
-          domain: domain.domain,
+        active_domains: domains.filter((d) => d.active === 1).length,
+        inactive_domains: domains.filter((d) => d.active !== 1).length,
+        domains: filteredDomains.map((domain) => ({
+          domain: domain.domain_name || 'Unknown',
           description: domain.description || 'No description',
-          active: domain.active,
-          quota: `${domain.quota} MB`,
-          max_quota: `${domain.maxquota} MB`,
-          relay_host: domain.relayhost || 'None',
-          created: domain.created,
-          modified: domain.modified,
+          active: domain.active === 1,
+          quota: domain.max_quota_for_domain
+            ? `${Math.round(domain.max_quota_for_domain / 1048576)} MB`
+            : 'Not set',
+          max_quota: domain.max_quota_for_domain
+            ? `${Math.round(domain.max_quota_for_domain / 1048576)} MB`
+            : 'Not set',
+          relay_host: domain.relayhost === '1' ? 'Enabled' : 'Disabled',
+          mailboxes: domain.mboxes_in_domain || 0,
+          created: domain.created || 'Unknown',
+          modified: domain.modified || 'Unknown',
         })),
       };
 
@@ -144,14 +163,18 @@ export class GetDomainTool extends BaseTool {
       domain: {
         type: 'string' as const,
         description: 'Domain name to retrieve details for',
-        pattern: '^[a-zA-Z0-9][a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9](?:\\.[a-zA-Z0-9][a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9])*$',
+        pattern:
+          '^[a-zA-Z0-9][a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9](?:\\.[a-zA-Z0-9][a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9])*$',
       },
     },
     required: ['domain'],
     additionalProperties: false,
   };
 
-  constructor(logger: Logger, private domainAPI: DomainAPI) {
+  constructor(
+    logger: Logger,
+    private domainAPI: DomainAPI
+  ) {
     super(logger, {
       category: ToolCategory.DOMAIN,
       version: '1.0.0',
@@ -160,7 +183,10 @@ export class GetDomainTool extends BaseTool {
     });
   }
 
-  async execute(input: ToolInput, context: ToolContext): Promise<ToolHandlerResult> {
+  async execute(
+    input: ToolInput,
+    context: ToolContext
+  ): Promise<ToolHandlerResult> {
     try {
       this.logExecution(input, context, true);
 
@@ -182,7 +208,7 @@ export class GetDomainTool extends BaseTool {
           success: false,
           error: {
             code: MCPErrorCode.INVALID_PARAMS,
-            message: `Input validation failed: ${validation.errors.map(e => e.message).join(', ')}`,
+            message: `Input validation failed: ${validation.errors.map((e) => e.message).join(', ')}`,
           },
         };
       }
@@ -203,16 +229,14 @@ export class GetDomainTool extends BaseTool {
       const domainDetails = await this.domainAPI.getDomainDetails(domain);
 
       const formattedDomain = {
-        domain: domainDetails.domain,
+        domain: domainDetails.domain_name,
         description: domainDetails.description || 'No description',
         active: domainDetails.active,
-        status: domainDetails.active ? 'Active' : 'Inactive',
+        status: domainDetails.active === 1 ? 'Active' : 'Inactive',
         quota: {
-          limit: `${domainDetails.quota} MB`,
-          max_limit: `${domainDetails.maxquota} MB`,
-          usage_percent: domainDetails.maxquota > 0 
-            ? Math.round((domainDetails.quota / domainDetails.maxquota) * 100) 
-            : 0,
+          limit: `${Math.round((domainDetails.max_quota_for_domain || 0) / 1048576)} MB`,
+          max_limit: `${Math.round((domainDetails.max_quota_for_domain || 0) / 1048576)} MB`,
+          usage_percent: 0, // Usage data not available in this endpoint
         },
         relay: {
           host: domainDetails.relayhost || 'None',
@@ -247,7 +271,8 @@ export class CreateDomainTool extends BaseTool {
       domain: {
         type: 'string' as const,
         description: 'Domain name to create',
-        pattern: '^[a-zA-Z0-9][a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9](?:\\.[a-zA-Z0-9][a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9])*$',
+        pattern:
+          '^[a-zA-Z0-9][a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9](?:\\.[a-zA-Z0-9][a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9])*$',
       },
       description: {
         type: 'string' as const,
@@ -276,7 +301,10 @@ export class CreateDomainTool extends BaseTool {
     additionalProperties: false,
   };
 
-  constructor(logger: Logger, private domainAPI: DomainAPI) {
+  constructor(
+    logger: Logger,
+    private domainAPI: DomainAPI
+  ) {
     super(logger, {
       category: ToolCategory.DOMAIN,
       version: '1.0.0',
@@ -285,7 +313,10 @@ export class CreateDomainTool extends BaseTool {
     });
   }
 
-  async execute(input: ToolInput, context: ToolContext): Promise<ToolHandlerResult> {
+  async execute(
+    input: ToolInput,
+    context: ToolContext
+  ): Promise<ToolHandlerResult> {
     try {
       this.logExecution(input, context, true);
 
@@ -307,18 +338,18 @@ export class CreateDomainTool extends BaseTool {
           success: false,
           error: {
             code: MCPErrorCode.INVALID_PARAMS,
-            message: `Input validation failed: ${validation.errors.map(e => e.message).join(', ')}`,
+            message: `Input validation failed: ${validation.errors.map((e) => e.message).join(', ')}`,
           },
         };
       }
 
-      const { 
-        domain, 
-        description, 
-        quota = 1000, 
-        max_quota = 10000, 
-        relay_host, 
-        relay_all_recipients = false 
+      const {
+        domain,
+        description,
+        quota = 1000,
+        max_quota = 10000,
+        relay_host,
+        relay_all_recipients = false,
       } = input;
 
       if (typeof domain !== 'string') {
@@ -334,7 +365,7 @@ export class CreateDomainTool extends BaseTool {
       // Validate quota relationship
       const quotaNum = typeof quota === 'number' ? quota : 1000;
       const maxQuotaNum = typeof max_quota === 'number' ? max_quota : 10000;
-      
+
       if (quotaNum > maxQuotaNum) {
         return {
           success: false,
@@ -352,7 +383,10 @@ export class CreateDomainTool extends BaseTool {
         quota: quotaNum,
         maxquota: maxQuotaNum,
         relayhost: typeof relay_host === 'string' ? relay_host : undefined,
-        relay_all_recipients: typeof relay_all_recipients === 'boolean' ? relay_all_recipients : false,
+        relay_all_recipients:
+          typeof relay_all_recipients === 'boolean'
+            ? relay_all_recipients
+            : false,
       };
 
       // Create domain
@@ -394,7 +428,8 @@ export class UpdateDomainTool extends BaseTool {
       domain: {
         type: 'string' as const,
         description: 'Domain name to update',
-        pattern: '^[a-zA-Z0-9][a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9](?:\\.[a-zA-Z0-9][a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9])*$',
+        pattern:
+          '^[a-zA-Z0-9][a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9](?:\\.[a-zA-Z0-9][a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9])*$',
       },
       description: {
         type: 'string' as const,
@@ -416,7 +451,8 @@ export class UpdateDomainTool extends BaseTool {
       },
       relay_host: {
         type: 'string' as const,
-        description: 'Updated relay host for outgoing mail (empty string to remove)',
+        description:
+          'Updated relay host for outgoing mail (empty string to remove)',
       },
       relay_all_recipients: {
         type: 'boolean' as const,
@@ -427,7 +463,10 @@ export class UpdateDomainTool extends BaseTool {
     additionalProperties: false,
   };
 
-  constructor(logger: Logger, private domainAPI: DomainAPI) {
+  constructor(
+    logger: Logger,
+    private domainAPI: DomainAPI
+  ) {
     super(logger, {
       category: ToolCategory.DOMAIN,
       version: '1.0.0',
@@ -436,7 +475,10 @@ export class UpdateDomainTool extends BaseTool {
     });
   }
 
-  async execute(input: ToolInput, context: ToolContext): Promise<ToolHandlerResult> {
+  async execute(
+    input: ToolInput,
+    context: ToolContext
+  ): Promise<ToolHandlerResult> {
     try {
       this.logExecution(input, context, true);
 
@@ -458,12 +500,20 @@ export class UpdateDomainTool extends BaseTool {
           success: false,
           error: {
             code: MCPErrorCode.INVALID_PARAMS,
-            message: `Input validation failed: ${validation.errors.map(e => e.message).join(', ')}`,
+            message: `Input validation failed: ${validation.errors.map((e) => e.message).join(', ')}`,
           },
         };
       }
 
-      const { domain, description, active, quota, max_quota, relay_host, relay_all_recipients } = input;
+      const {
+        domain,
+        description,
+        active,
+        quota,
+        max_quota,
+        relay_host,
+        relay_all_recipients,
+      } = input;
 
       if (typeof domain !== 'string') {
         return {
@@ -489,9 +539,13 @@ export class UpdateDomainTool extends BaseTool {
       }
 
       // Validate quota relationship
-      if (quota !== undefined && max_quota !== undefined && 
-          typeof quota === 'number' && typeof max_quota === 'number' && 
-          quota > max_quota) {
+      if (
+        quota !== undefined &&
+        max_quota !== undefined &&
+        typeof quota === 'number' &&
+        typeof max_quota === 'number' &&
+        quota > max_quota
+      ) {
         return {
           success: false,
           error: {
@@ -503,15 +557,27 @@ export class UpdateDomainTool extends BaseTool {
 
       // Build update request (only include provided fields)
       const updateRequest: UpdateDomainRequest = {};
-      if (description !== undefined && typeof description === 'string') updateRequest.description = description;
-      if (active !== undefined && typeof active === 'boolean') updateRequest.active = active;
-      if (quota !== undefined && typeof quota === 'number') updateRequest.quota = quota;
-      if (max_quota !== undefined && typeof max_quota === 'number') updateRequest.maxquota = max_quota;
-      if (relay_host !== undefined && typeof relay_host === 'string') updateRequest.relayhost = relay_host || undefined;
-      if (relay_all_recipients !== undefined && typeof relay_all_recipients === 'boolean') updateRequest.relay_all_recipients = relay_all_recipients;
+      if (description !== undefined && typeof description === 'string')
+        updateRequest.description = description;
+      if (active !== undefined && typeof active === 'boolean')
+        updateRequest.active = active;
+      if (quota !== undefined && typeof quota === 'number')
+        updateRequest.quota = quota;
+      if (max_quota !== undefined && typeof max_quota === 'number')
+        updateRequest.maxquota = max_quota;
+      if (relay_host !== undefined && typeof relay_host === 'string')
+        updateRequest.relayhost = relay_host || undefined;
+      if (
+        relay_all_recipients !== undefined &&
+        typeof relay_all_recipients === 'boolean'
+      )
+        updateRequest.relay_all_recipients = relay_all_recipients;
 
       // Update domain
-      const updatedDomain = await this.domainAPI.updateDomain(domain, updateRequest);
+      const updatedDomain = await this.domainAPI.updateDomain(
+        domain,
+        updateRequest
+      );
 
       const result = {
         message: `Domain '${updatedDomain.domain}' updated successfully`,
@@ -543,25 +609,31 @@ export class UpdateDomainTool extends BaseTool {
  */
 export class DeleteDomainTool extends BaseTool {
   readonly name = 'delete_domain';
-  readonly description = 'Delete a domain from the Mailcow server (WARNING: This will also delete all associated mailboxes and aliases!)';
+  readonly description =
+    'Delete a domain from the Mailcow server (WARNING: This will also delete all associated mailboxes and aliases!)';
   readonly inputSchema = {
     type: 'object' as const,
     properties: {
       domain: {
         type: 'string' as const,
         description: 'Domain name to delete',
-        pattern: '^[a-zA-Z0-9][a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9](?:\\.[a-zA-Z0-9][a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9])*$',
+        pattern:
+          '^[a-zA-Z0-9][a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9](?:\\.[a-zA-Z0-9][a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9])*$',
       },
       confirm: {
         type: 'boolean' as const,
-        description: 'Confirmation that you want to delete the domain and ALL associated data',
+        description:
+          'Confirmation that you want to delete the domain and ALL associated data',
       },
     },
     required: ['domain', 'confirm'],
     additionalProperties: false,
   };
 
-  constructor(logger: Logger, private domainAPI: DomainAPI) {
+  constructor(
+    logger: Logger,
+    private domainAPI: DomainAPI
+  ) {
     super(logger, {
       category: ToolCategory.DOMAIN,
       version: '1.0.0',
@@ -570,7 +642,10 @@ export class DeleteDomainTool extends BaseTool {
     });
   }
 
-  async execute(input: ToolInput, context: ToolContext): Promise<ToolHandlerResult> {
+  async execute(
+    input: ToolInput,
+    context: ToolContext
+  ): Promise<ToolHandlerResult> {
     try {
       this.logExecution(input, context, true);
 
@@ -592,7 +667,7 @@ export class DeleteDomainTool extends BaseTool {
           success: false,
           error: {
             code: MCPErrorCode.INVALID_PARAMS,
-            message: `Input validation failed: ${validation.errors.map(e => e.message).join(', ')}`,
+            message: `Input validation failed: ${validation.errors.map((e) => e.message).join(', ')}`,
           },
         };
       }
@@ -625,7 +700,8 @@ export class DeleteDomainTool extends BaseTool {
           success: false,
           error: {
             code: MCPErrorCode.INVALID_PARAMS,
-            message: 'Domain deletion requires explicit confirmation (confirm: true)',
+            message:
+              'Domain deletion requires explicit confirmation (confirm: true)',
           },
         };
       }
@@ -653,11 +729,12 @@ export class DeleteDomainTool extends BaseTool {
           domain: domainDetails.domain,
           description: domainDetails.description || 'No description',
           was_active: domainDetails.active,
-          quota: `${domainDetails.quota} MB`,
-          max_quota: `${domainDetails.maxquota} MB`,
+          quota: `${Math.round((domainDetails.max_quota_for_domain || 0) / 1048576)} MB`,
+          max_quota: `${Math.round((domainDetails.max_quota_for_domain || 0) / 1048576)} MB`,
           deleted_at: new Date().toISOString(),
         },
-        warning: 'All associated mailboxes, aliases, and data have been permanently deleted',
+        warning:
+          'All associated mailboxes, aliases, and data have been permanently deleted',
       };
 
       return {

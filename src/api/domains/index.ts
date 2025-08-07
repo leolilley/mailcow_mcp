@@ -12,10 +12,21 @@ export class DomainAPI {
   constructor(private client: APIClient) {}
 
   async listDomains(params?: ListDomainsParams): Promise<MailcowDomain[]> {
-    return this.client.get<MailcowDomain[]>(
+    const response = await this.client.get<MailcowDomain[]>(
       buildDomainEndpoint(APIAction.LIST),
       { params }
     );
+    
+    // Handle different response formats
+    if (Array.isArray(response)) {
+      return response;
+    } else if (response && typeof response === 'object') {
+      // If response is an object, try to extract the array
+      const domains = (response as any).domains || (response as any).data || response;
+      return Array.isArray(domains) ? domains : [domains];
+    }
+    
+    return [];
   }
 
   async createDomain(domain: CreateDomainRequest): Promise<MailcowDomain> {

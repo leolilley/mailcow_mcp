@@ -19,15 +19,24 @@ export interface MailcowAPIError {
 
 // Domain Types
 export interface MailcowDomain {
-  domain: string;
+  domain_name: string;
+  domain_h_name: string;
   description?: string;
-  active: boolean;
-  quota: number;
-  maxquota: number;
-  relayhost?: string;
-  relay_all_recipients?: boolean;
-  created: Date;
-  modified: Date;
+  active: number; // Mailcow uses 1/0 instead of boolean
+  max_quota_for_domain: number;
+  def_quota_for_mbox: number;
+  max_quota_for_mbox: number;
+  relayhost: string; // "1" or "0"
+  relay_all_recipients: number;
+  mboxes_in_domain: number;
+  mboxes_left: number;
+  created: string;
+  modified: string;
+  tags?: string[];
+  // Legacy fields for backward compatibility
+  domain?: string;
+  quota?: number;
+  maxquota?: number;
   attributes?: Record<string, unknown>;
 }
 
@@ -51,17 +60,20 @@ export interface UpdateDomainRequest {
 
 // Mailbox Types
 export interface MailcowMailbox {
-  id: number;
   username: string;
   domain: string;
   local_part: string;
+  name: string;
   quota: number;
-  quota_used: number;
-  name?: string;
-  active: boolean;
-  created: Date;
-  modified: Date;
+  messages: number;
+  active: number; // Mailcow uses 1/0 instead of boolean
+  active_int: number;
+  created: string;
+  modified: string;
   attributes?: Record<string, unknown>;
+  // Legacy fields for backward compatibility
+  id?: number;
+  quota_used?: number;
 }
 
 export interface CreateMailboxRequest {

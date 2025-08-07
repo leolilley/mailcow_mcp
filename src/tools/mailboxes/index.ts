@@ -108,7 +108,7 @@ export class ListMailboxesTool extends BaseTool {
       }
 
       if (active_only) {
-        filteredMailboxes = filteredMailboxes.filter(mailbox => mailbox.active);
+        filteredMailboxes = filteredMailboxes.filter(mailbox => mailbox.active === 1);
       }
 
       if (search && typeof search === 'string') {
@@ -126,10 +126,10 @@ export class ListMailboxesTool extends BaseTool {
 
       // Calculate quota statistics
       const quotaStats = {
-        total_quota: mailboxes.reduce((sum, m) => sum + m.quota, 0),
-        total_used: mailboxes.reduce((sum, m) => sum + m.quota_used, 0),
+        total_quota: mailboxes.reduce((sum, m) => sum + (m.quota || 0), 0),
+        total_used: mailboxes.reduce((sum, m) => sum + (m.quota_used || 0), 0),
         avg_usage_percent: mailboxes.length > 0 
-          ? Math.round(mailboxes.reduce((sum, m) => sum + (m.quota > 0 ? (m.quota_used / m.quota) * 100 : 0), 0) / mailboxes.length)
+          ? Math.round(mailboxes.reduce((sum, m) => sum + (m.quota && m.quota > 0 ? ((m.quota_used || 0) / m.quota) * 100 : 0), 0) / mailboxes.length)
           : 0,
       };
 
@@ -137,23 +137,23 @@ export class ListMailboxesTool extends BaseTool {
       const summary = {
         total_mailboxes: mailboxes.length,
         filtered_mailboxes: filteredMailboxes.length,
-        active_mailboxes: mailboxes.filter(m => m.active).length,
-        inactive_mailboxes: mailboxes.filter(m => !m.active).length,
+        active_mailboxes: mailboxes.filter(m => m.active === 1).length,
+        inactive_mailboxes: mailboxes.filter(m => m.active !== 1).length,
         quota_statistics: show_quota_usage ? quotaStats : undefined,
         mailboxes: filteredMailboxes.map(mailbox => ({
-          username: mailbox.username,
-          domain: mailbox.domain,
-          local_part: mailbox.local_part,
+          username: mailbox.username || 'Unknown',
+          domain: mailbox.domain || 'Unknown',
+          local_part: mailbox.local_part || 'Unknown',
           name: mailbox.name || 'No name set',
-          active: mailbox.active,
+          active: mailbox.active === 1,
           quota_info: show_quota_usage ? {
-            quota_mb: mailbox.quota,
-            used_mb: mailbox.quota_used,
-            usage_percent: mailbox.quota > 0 ? Math.round((mailbox.quota_used / mailbox.quota) * 100) : 0,
-            available_mb: Math.max(0, mailbox.quota - mailbox.quota_used),
+            quota_mb: mailbox.quota ? Math.round(mailbox.quota / 1048576) : null,
+            messages: mailbox.messages || 0,
+            usage_percent: 0, // Mailcow doesn't provide usage data in this endpoint
+            available_mb: mailbox.quota ? Math.round(mailbox.quota / 1048576) : null,
           } : undefined,
-          created: mailbox.created,
-          modified: mailbox.modified,
+          created: mailbox.created || 'Unknown',
+          modified: mailbox.modified || 'Unknown',
         })),
       };
 
@@ -245,17 +245,11 @@ export class GetMailboxTool extends BaseTool {
         active: mailboxDetails.active,
         status: mailboxDetails.active ? 'Active' : 'Inactive',
         quota_details: {
-          quota_mb: mailboxDetails.quota,
-          used_mb: mailboxDetails.quota_used,
-          available_mb: Math.max(0, mailboxDetails.quota - mailboxDetails.quota_used),
-          usage_percent: mailboxDetails.quota > 0 
-            ? Math.round((mailboxDetails.quota_used / mailboxDetails.quota) * 100) 
-            : 0,
-          quota_status: mailboxDetails.quota > 0 && mailboxDetails.quota_used >= mailboxDetails.quota 
-            ? 'Full' 
-            : mailboxDetails.quota > 0 && (mailboxDetails.quota_used / mailboxDetails.quota) > 0.9 
-            ? 'Nearly Full' 
-            : 'Available',
+          quota_mb: Math.round((mailboxDetails.quota || 0) / 1048576),
+          used_mb: 0, // Usage data not available in this endpoint
+          available_mb: Math.round((mailboxDetails.quota || 0) / 1048576),
+          usage_percent: 0, // Usage data not available in this endpoint
+          quota_status: 'Available',
         },
         timestamps: {
           created: mailboxDetails.created,
@@ -681,8 +675,8 @@ export class DeleteMailboxTool extends BaseTool {
           local_part: mailboxDetails.local_part,
           name: mailboxDetails.name || 'No name set',
           was_active: mailboxDetails.active,
-          quota_mb: mailboxDetails.quota,
-          quota_used_mb: mailboxDetails.quota_used,
+          quota_mb: Math.round((mailboxDetails.quota || 0) / 1048576),
+          quota_used_mb: 0, // Usage data not available
           deleted_at: new Date().toISOString(),
           mailbox_id: mailboxDetails.id,
         },

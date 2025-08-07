@@ -12,10 +12,21 @@ export class MailboxAPI {
   constructor(private client: APIClient) {}
 
   async listMailboxes(params?: ListMailboxesParams): Promise<MailcowMailbox[]> {
-    return this.client.get<MailcowMailbox[]>(
+    const response = await this.client.get<MailcowMailbox[]>(
       buildMailboxEndpoint(APIAction.LIST),
       { params }
     );
+    
+    // Handle different response formats
+    if (Array.isArray(response)) {
+      return response;
+    } else if (response && typeof response === 'object') {
+      // If response is an object, try to extract the array
+      const mailboxes = (response as any).mailboxes || (response as any).data || response;
+      return Array.isArray(mailboxes) ? mailboxes : [mailboxes];
+    }
+    
+    return [];
   }
 
   async createMailbox(mailbox: CreateMailboxRequest): Promise<MailcowMailbox> {

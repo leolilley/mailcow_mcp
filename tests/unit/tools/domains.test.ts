@@ -28,29 +28,37 @@ describe('Domain Management Tools (Fixed)', () => {
   // Sample domain data
   const sampleDomains: MailcowDomain[] = [
     {
-      domain: 'example.com',
+      domain_name: 'example.com',
+      domain_h_name: 'example.com',
       description: 'Main domain',
-      active: true,
-      quota: 1000,
-      maxquota: 10000,
+      active: 1, // Mailcow uses 1/0 instead of boolean
+      max_quota_for_domain: 10000,
+      def_quota_for_mbox: 1000,
+      max_quota_for_mbox: 1000,
       relayhost: '',
-      relay_all_recipients: false,
-      created: new Date('2023-01-01'),
-      modified: new Date('2023-01-15'),
-      attributes: {}
+      relay_all_recipients: 0, // Mailcow uses 1/0 instead of boolean
+      mboxes_in_domain: 5,
+      mboxes_left: 95,
+      created: '2023-01-01T00:00:00Z',
+      modified: '2023-01-15T00:00:00Z',
+      tags: [],
     },
     {
-      domain: 'test.org',
+      domain_name: 'test.org',
+      domain_h_name: 'test.org',
       description: 'Test domain',
-      active: false,
-      quota: 500,
-      maxquota: 5000,
+      active: 0, // Mailcow uses 1/0 instead of boolean
+      max_quota_for_domain: 5000,
+      def_quota_for_mbox: 500,
+      max_quota_for_mbox: 500,
       relayhost: 'relay.example.com',
-      relay_all_recipients: true,
-      created: new Date('2023-02-01'),
-      modified: new Date('2023-02-10'),
-      attributes: {}
-    }
+      relay_all_recipients: 1, // Mailcow uses 1/0 instead of boolean
+      mboxes_in_domain: 2,
+      mboxes_left: 98,
+      created: '2023-02-01T00:00:00Z',
+      modified: '2023-02-10T00:00:00Z',
+      tags: [],
+    },
   ];
 
   beforeEach(() => {

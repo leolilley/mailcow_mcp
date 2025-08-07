@@ -9,7 +9,7 @@ import { APIAction } from '../types/api';
 export const API_ENDPOINTS = {
   // Domain endpoints
   DOMAINS: {
-    LIST: '/api/v1/get/domain',
+    LIST: '/api/v1/get/domain/all',
     CREATE: '/api/v1/add/domain',
     UPDATE: '/api/v1/edit/domain',
     DELETE: '/api/v1/delete/domain',
@@ -17,7 +17,7 @@ export const API_ENDPOINTS = {
 
   // Mailbox endpoints
   MAILBOXES: {
-    LIST: '/api/v1/get/mailbox',
+    LIST: '/api/v1/get/mailbox/all',
     CREATE: '/api/v1/add/mailbox',
     UPDATE: '/api/v1/edit/mailbox',
     DELETE: '/api/v1/delete/mailbox',
