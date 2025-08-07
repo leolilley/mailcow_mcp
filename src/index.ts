@@ -212,7 +212,22 @@ class MailcowMCPServer {
     return {
       userId: 'system',
       requestId: this.generateRequestId(),
-      permissions: ['execute', 'read', 'write'], // Based on API key capabilities
+      permissions: [
+        // Generic permissions
+        'execute', 'read', 'write', 'delete',
+        // Domain permissions
+        'domains:read', 'domains:write', 'domains:delete',
+        // Mailbox permissions  
+        'mailboxes:read', 'mailboxes:write', 'mailboxes:delete',
+        // Queue permissions
+        'queues:read', 'queues:write', 'queues:delete',
+        // Sync job permissions
+        'syncjobs:read', 'syncjobs:write', 'syncjobs:delete',
+        // Log permissions
+        'logs:read',
+        // Email permissions
+        'email:send', 'email:read'
+      ], // Based on API key capabilities
       accessLevel: 'read-write' as const, // From API key validation
       apiClient: this.apiClient,
       toolName,
