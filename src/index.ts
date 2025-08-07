@@ -17,8 +17,14 @@ import { ToolRegistry } from './tools/registry.js';
 import { Logger, ConsoleLogDestination } from './utils/logger.js';
 
 // Import tool implementations (when they exist)
-// import { DomainTools } from './tools/domains/index.js';
-// import { MailboxTools } from './tools/mailboxes/index.js';
+import { DomainTools } from './tools/domains/index.js';
+import { DomainAPI } from './api/domains/index.js';
+import { MailboxTools } from './tools/mailboxes/index.js';
+import { MailboxAPI } from './api/mailboxes/index.js';
+import { UserTools } from './tools/users/index.js';
+import { UsersAPI } from './api/users/index.js';
+import { DKIMTools } from './tools/dkim/index.js';
+import { DKIMAPI } from './api/dkim/index.js';
 // import { AliasTools } from './tools/aliases/index.js';
 
 /**
@@ -357,10 +363,348 @@ class MailcowMCPServer {
       }
     });
 
-    // TODO: Register domain, mailbox, alias tools when they're implemented
-    // await this.registerDomainTools();
-    // await this.registerMailboxTools();
+    // Register domain tools
+    await this.registerDomainTools();
+    
+    // Register mailbox tools
+    await this.registerMailboxTools();
+    
+    // Register user tools
+    await this.registerUserTools();
+    
+    // Register DKIM tools
+    await this.registerDKIMTools();
+    
+    // TODO: Register alias tools when implemented
     // await this.registerAliasTools();
+  }
+
+  /**
+   * Register domain management tools
+   */
+  private async registerDomainTools(): Promise<void> {
+    if (!this.apiClient) {
+      this.logger.warn('API client not available - skipping domain tools registration');
+      return;
+    }
+
+    try {
+      // Create domain API instance
+      const domainAPI = new DomainAPI(this.apiClient);
+
+      // Create and register domain tools
+      const listTool = new DomainTools.ListDomainsTool(this.logger, domainAPI);
+      const getTool = new DomainTools.GetDomainTool(this.logger, domainAPI);
+      const createTool = new DomainTools.CreateDomainTool(this.logger, domainAPI);
+      const updateTool = new DomainTools.UpdateDomainTool(this.logger, domainAPI);
+      const deleteTool = new DomainTools.DeleteDomainTool(this.logger, domainAPI);
+
+      // Register tools with the registry
+      this.toolRegistry.register({
+        name: listTool.name,
+        description: listTool.description,
+        inputSchema: listTool.inputSchema,
+      });
+
+      this.toolRegistry.register({
+        name: getTool.name,
+        description: getTool.description,
+        inputSchema: getTool.inputSchema,
+      });
+
+      this.toolRegistry.register({
+        name: createTool.name,
+        description: createTool.description,
+        inputSchema: createTool.inputSchema,
+      });
+
+      this.toolRegistry.register({
+        name: updateTool.name,
+        description: updateTool.description,
+        inputSchema: updateTool.inputSchema,
+      });
+
+      this.toolRegistry.register({
+        name: deleteTool.name,
+        description: deleteTool.description,
+        inputSchema: deleteTool.inputSchema,
+      });
+
+      // Register tool handlers
+      this.toolRegistry.registerHandler(listTool.name, async (input, context) => {
+        return await listTool.execute(input, context);
+      });
+
+      this.toolRegistry.registerHandler(getTool.name, async (input, context) => {
+        return await getTool.execute(input, context);
+      });
+
+      this.toolRegistry.registerHandler(createTool.name, async (input, context) => {
+        return await createTool.execute(input, context);
+      });
+
+      this.toolRegistry.registerHandler(updateTool.name, async (input, context) => {
+        return await updateTool.execute(input, context);
+      });
+
+      this.toolRegistry.registerHandler(deleteTool.name, async (input, context) => {
+        return await deleteTool.execute(input, context);
+      });
+
+      this.logger.info('Domain tools registered successfully', {
+        tools: [listTool.name, getTool.name, createTool.name, updateTool.name, deleteTool.name]
+      });
+
+    } catch (error) {
+      this.logger.error('Failed to register domain tools', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Register mailbox management tools
+   */
+  private async registerMailboxTools(): Promise<void> {
+    if (!this.apiClient) {
+      this.logger.warn('API client not available - skipping mailbox tools registration');
+      return;
+    }
+
+    try {
+      // Create mailbox API instance
+      const mailboxAPI = new MailboxAPI(this.apiClient);
+
+      // Create and register mailbox tools
+      const listTool = new MailboxTools.ListMailboxesTool(this.logger, mailboxAPI);
+      const getTool = new MailboxTools.GetMailboxTool(this.logger, mailboxAPI);
+      const createTool = new MailboxTools.CreateMailboxTool(this.logger, mailboxAPI);
+      const updateTool = new MailboxTools.UpdateMailboxTool(this.logger, mailboxAPI);
+      const deleteTool = new MailboxTools.DeleteMailboxTool(this.logger, mailboxAPI);
+
+      // Register tools with the registry
+      this.toolRegistry.register({
+        name: listTool.name,
+        description: listTool.description,
+        inputSchema: listTool.inputSchema,
+      });
+
+      this.toolRegistry.register({
+        name: getTool.name,
+        description: getTool.description,
+        inputSchema: getTool.inputSchema,
+      });
+
+      this.toolRegistry.register({
+        name: createTool.name,
+        description: createTool.description,
+        inputSchema: createTool.inputSchema,
+      });
+
+      this.toolRegistry.register({
+        name: updateTool.name,
+        description: updateTool.description,
+        inputSchema: updateTool.inputSchema,
+      });
+
+      this.toolRegistry.register({
+        name: deleteTool.name,
+        description: deleteTool.description,
+        inputSchema: deleteTool.inputSchema,
+      });
+
+      // Register tool handlers
+      this.toolRegistry.registerHandler(listTool.name, async (input, context) => {
+        return await listTool.execute(input, context);
+      });
+
+      this.toolRegistry.registerHandler(getTool.name, async (input, context) => {
+        return await getTool.execute(input, context);
+      });
+
+      this.toolRegistry.registerHandler(createTool.name, async (input, context) => {
+        return await createTool.execute(input, context);
+      });
+
+      this.toolRegistry.registerHandler(updateTool.name, async (input, context) => {
+        return await updateTool.execute(input, context);
+      });
+
+      this.toolRegistry.registerHandler(deleteTool.name, async (input, context) => {
+        return await deleteTool.execute(input, context);
+      });
+
+      this.logger.info('Mailbox tools registered successfully', {
+        tools: [listTool.name, getTool.name, createTool.name, updateTool.name, deleteTool.name]
+      });
+
+    } catch (error) {
+      this.logger.error('Failed to register mailbox tools', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Register user management tools
+   */
+  private async registerUserTools(): Promise<void> {
+    if (!this.apiClient) {
+      this.logger.warn('API client not available - skipping user tools registration');
+      return;
+    }
+
+    try {
+      // Create users API instance
+      const usersAPI = new UsersAPI(this.apiClient);
+
+      // Create and register user tools
+      const listTool = new UserTools.ListUsersTool(this.logger, usersAPI);
+      const getTool = new UserTools.GetUserTool(this.logger, usersAPI);
+      const createTool = new UserTools.CreateUserTool(this.logger, usersAPI);
+      const updateTool = new UserTools.UpdateUserTool(this.logger, usersAPI);
+      const deleteTool = new UserTools.DeleteUserTool(this.logger, usersAPI);
+
+      // Register tools with the registry
+      this.toolRegistry.register({
+        name: listTool.name,
+        description: listTool.description,
+        inputSchema: listTool.inputSchema,
+      });
+
+      this.toolRegistry.register({
+        name: getTool.name,
+        description: getTool.description,
+        inputSchema: getTool.inputSchema,
+      });
+
+      this.toolRegistry.register({
+        name: createTool.name,
+        description: createTool.description,
+        inputSchema: createTool.inputSchema,
+      });
+
+      this.toolRegistry.register({
+        name: updateTool.name,
+        description: updateTool.description,
+        inputSchema: updateTool.inputSchema,
+      });
+
+      this.toolRegistry.register({
+        name: deleteTool.name,
+        description: deleteTool.description,
+        inputSchema: deleteTool.inputSchema,
+      });
+
+      // Register tool handlers
+      this.toolRegistry.registerHandler(listTool.name, async (input, context) => {
+        return await listTool.execute(input, context);
+      });
+
+      this.toolRegistry.registerHandler(getTool.name, async (input, context) => {
+        return await getTool.execute(input, context);
+      });
+
+      this.toolRegistry.registerHandler(createTool.name, async (input, context) => {
+        return await createTool.execute(input, context);
+      });
+
+      this.toolRegistry.registerHandler(updateTool.name, async (input, context) => {
+        return await updateTool.execute(input, context);
+      });
+
+      this.toolRegistry.registerHandler(deleteTool.name, async (input, context) => {
+        return await deleteTool.execute(input, context);
+      });
+
+      this.logger.info('User tools registered successfully', {
+        tools: [listTool.name, getTool.name, createTool.name, updateTool.name, deleteTool.name]
+      });
+
+    } catch (error) {
+      this.logger.error('Failed to register user tools', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Register DKIM management tools
+   */
+  private async registerDKIMTools(): Promise<void> {
+    if (!this.apiClient) {
+      this.logger.warn('API client not available - skipping DKIM tools registration');
+      return;
+    }
+
+    try {
+      // Create DKIM API instance
+      const dkimAPI = new DKIMAPI(this.apiClient);
+
+      // Create and register DKIM tools
+      const listTool = new DKIMTools.ListDKIMKeysTool(this.logger, dkimAPI);
+      const getTool = new DKIMTools.GetDKIMKeyTool(this.logger, dkimAPI);
+      const createTool = new DKIMTools.CreateDKIMKeyTool(this.logger, dkimAPI);
+      const updateTool = new DKIMTools.UpdateDKIMKeyTool(this.logger, dkimAPI);
+      const deleteTool = new DKIMTools.DeleteDKIMKeyTool(this.logger, dkimAPI);
+
+      // Register tools with the registry
+      this.toolRegistry.register({
+        name: listTool.name,
+        description: listTool.description,
+        inputSchema: listTool.inputSchema,
+      });
+
+      this.toolRegistry.register({
+        name: getTool.name,
+        description: getTool.description,
+        inputSchema: getTool.inputSchema,
+      });
+
+      this.toolRegistry.register({
+        name: createTool.name,
+        description: createTool.description,
+        inputSchema: createTool.inputSchema,
+      });
+
+      this.toolRegistry.register({
+        name: updateTool.name,
+        description: updateTool.description,
+        inputSchema: updateTool.inputSchema,
+      });
+
+      this.toolRegistry.register({
+        name: deleteTool.name,
+        description: deleteTool.description,
+        inputSchema: deleteTool.inputSchema,
+      });
+
+      // Register tool handlers
+      this.toolRegistry.registerHandler(listTool.name, async (input, context) => {
+        return await listTool.execute(input, context);
+      });
+
+      this.toolRegistry.registerHandler(getTool.name, async (input, context) => {
+        return await getTool.execute(input, context);
+      });
+
+      this.toolRegistry.registerHandler(createTool.name, async (input, context) => {
+        return await createTool.execute(input, context);
+      });
+
+      this.toolRegistry.registerHandler(updateTool.name, async (input, context) => {
+        return await updateTool.execute(input, context);
+      });
+
+      this.toolRegistry.registerHandler(deleteTool.name, async (input, context) => {
+        return await deleteTool.execute(input, context);
+      });
+
+      this.logger.info('DKIM tools registered successfully', {
+        tools: [listTool.name, getTool.name, createTool.name, updateTool.name, deleteTool.name]
+      });
+
+    } catch (error) {
+      this.logger.error('Failed to register DKIM tools', error);
+      throw error;
+    }
   }
 
   /**

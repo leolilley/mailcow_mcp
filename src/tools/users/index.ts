@@ -1,464 +1,727 @@
 /**
- * Users Tools
- * MCP tools for Mailcow user management operations
+ * User Management Tools
+ * MCP tools for managing Mailcow users
  */
 
-import { 
-  ToolInput, 
+import { BaseTool, ToolUtils } from '../base';
+import { UsersAPI } from '../../api/users';
+import {
+  ToolInput,
   ToolContext,
   ToolHandlerResult,
-  ToolCategory
-} from '../../types';
-import { ToolBuilder } from '../base';
-import { Logger } from '../../utils';
-import { UsersAPI } from '../../api';
-import { 
-  CreateUserRequest, 
+  CreateUserRequest,
   UpdateUserRequest,
-  ListUsersParams 
-} from '../../types/mailcow';
+  ToolCategory,
+  MCPErrorCode,
+} from '../../types';
+import { Logger } from '../../utils';
 
 /**
- * Create user management tools using the FunctionTool pattern
+ * List all users
  */
-export function createUsersTools(usersAPI: UsersAPI, logger: Logger) {
-  const toolBuilder = new ToolBuilder(logger);
-
-  // List Users Tool
-  const listUsersTool = toolBuilder
-    .withName('list_users')
-    .withDescription('List all users with optional filtering by domain, status, or date range')
-    .withInputSchema({
-      type: 'object',
-      properties: {
-        domain: { type: 'string', description: 'Filter by domain' },
-        active: { type: 'boolean', description: 'Filter by active status' },
-        username: { type: 'string', description: 'Filter by username' },
-        created_after: { type: 'string', format: 'date-time', description: 'Filter by creation date (after)' },
-        created_before: { type: 'string', format: 'date-time', description: 'Filter by creation date (before)' },
-        limit: { type: 'number', description: 'Maximum number of results' },
-        offset: { type: 'number', description: 'Number of results to skip' }
+export class ListUsersTool extends BaseTool {
+  readonly name = 'list_users';
+  readonly description = 'List all users in the Mailcow server with optional filtering';
+  readonly inputSchema = {
+    type: 'object' as const,
+    properties: {
+      domain: {
+        type: 'string' as const,
+        description: 'Filter by specific domain',
+        pattern: '^[a-zA-Z0-9][a-zA-Z0-9\\\\\\\\-]{0,61}[a-zA-Z0-9](?:\\\\\\\\.[a-zA-Z0-9][a-zA-Z0-9\\\\\\\\-]{0,61}[a-zA-Z0-9])*$',
       },
-      additionalProperties: false
-    })
-         .withHandler(async (input: ToolInput, _context: ToolContext): Promise<ToolHandlerResult> => {
-       try {
-         const params: ListUsersParams = {};
-         if (input.domain) params.domain = input.domain as string;
-         if (input.active !== undefined) params.active = input.active as boolean;
-         if (input.username) params.username = input.username as string;
-         if (input.created_after) params.created_after = new Date(input.created_after as string);
-         if (input.created_before) params.created_before = new Date(input.created_before as string);
-         if (input.limit) params.limit = input.limit as number;
-         if (input.offset) params.offset = input.offset as number;
+      active_only: {
+        type: 'boolean' as const,
+        description: 'Only return active users',
+      },
+      username: {
+        type: 'string' as const,
+        description: 'Filter by username (partial match)',
+        pattern: '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\\\.[a-zA-Z]{2,}$',
+      },
+      created_after: {
+        type: 'string' as const,
+        description: 'Filter by creation date (after this date)',
+        format: 'date-time',
+      },
+      created_before: {
+        type: 'string' as const,
+        description: 'Filter by creation date (before this date)', 
+        format: 'date-time',
+      },
+      limit: {
+        type: 'number' as const,
+        description: 'Maximum number of users to return',
+        minimum: 1,
+        maximum: 1000,
+      },
+      offset: {
+        type: 'number' as const,
+        description: 'Number of users to skip for pagination',
+        minimum: 0,
+      },
+    },
+    additionalProperties: false,
+  };
 
-         const users = await usersAPI.listUsers(params);
-         
-         return {
-           success: true,
-           result: {
-             content: [{
-               type: 'text',
-               text: JSON.stringify({ users, total: users.length, filters: params }, null, 2)
-             }]
-           }
-         };
-       } catch (error) {
-         return {
-           success: false,
-           error: {
-             code: 500,
-             message: error instanceof Error ? error.message : 'Failed to list users'
-           }
-         };
-       }
-     })
-    .withMetadata({
+  constructor(logger: Logger, private usersAPI: UsersAPI) {
+    super(logger, {
       category: ToolCategory.MAILBOX,
       version: '1.0.0',
       requiresAuth: true,
-      rateLimited: true
-    })
-    .build();
+      rateLimited: true,
+    });
+  }
 
-  // Get User Tool
-  const getUserTool = toolBuilder
-    .withName('get_user')
-    .withDescription('Get a specific user by username')
-    .withInputSchema({
-      type: 'object',
-      properties: {
-        username: { type: 'string', description: 'Username to retrieve' }
-      },
-      required: ['username'],
-      additionalProperties: false
-    })
-         .withHandler(async (input: ToolInput, _context: ToolContext): Promise<ToolHandlerResult> => {
-       try {
-         const username = input.username as string;
-         const user = await usersAPI.getUser(username);
-         
-         if (!user) {
-           return {
-             success: false,
-             error: {
-               code: 404,
-               message: `User '${username}' not found`
-             }
-           };
-         }
-         
-         return {
-           success: true,
-           result: {
-             content: [{
-               type: 'text',
-               text: JSON.stringify({ user }, null, 2)
-             }]
-           }
-         };
-       } catch (error) {
-         return {
-           success: false,
-           error: {
-             code: 500,
-             message: error instanceof Error ? error.message : 'Failed to get user'
-           }
-         };
-       }
-     })
-    .withMetadata({
-      category: ToolCategory.MAILBOX,
-      version: '1.0.0',
-      requiresAuth: true,
-      rateLimited: true
-    })
-    .build();
+  async execute(input: ToolInput, context: ToolContext): Promise<ToolHandlerResult> {
+    try {
+      this.logExecution(input, context, true);
 
-  // Create User Tool
-  const createUserTool = toolBuilder
-    .withName('create_user')
-    .withDescription('Create a new user with specified domain, quota, and password')
-    .withInputSchema({
-      type: 'object',
-      properties: {
-        local_part: { type: 'string', description: 'Local part of the email address' },
-        domain: { type: 'string', description: 'Domain for the user' },
-        quota: { type: 'number', description: 'Mailbox quota in MB' },
-        password: { type: 'string', description: 'User password' },
-        name: { type: 'string', description: 'Display name for the user' },
-        active: { type: 'boolean', description: 'Whether the user is active (defaults to true)' }
-      },
-      required: ['local_part', 'domain', 'quota', 'password'],
-      additionalProperties: false
-    })
-    .withHandler(async (input: ToolInput, _context: ToolContext): Promise<ToolHandlerResult> => {
-      try {
-        const userData: CreateUserRequest = {
-          local_part: input.local_part as string,
-          domain: input.domain as string,
-          quota: input.quota as number,
-          password: input.password as string,
-          name: input.name as string,
-          active: input.active as boolean ?? true
-        };
-
-        const user = await usersAPI.createUser(userData);
-        
-        return {
-          success: true,
-          result: {
-            content: [{
-              type: 'text',
-              text: JSON.stringify({
-                message: `User '${user.username}' created successfully`,
-                user
-              }, null, 2)
-            }]
-          }
-        };
-      } catch (error) {
+      // Validate permissions
+      if (!this.validatePermissions(context, ['users:read', 'mailboxes:read', 'read'])) {
         return {
           success: false,
           error: {
-            code: 500,
-            message: error instanceof Error ? error.message : 'Failed to create user'
-          }
+            code: MCPErrorCode.AUTHORIZATION_ERROR,
+            message: 'Permission denied: requires users:read permission',
+          },
         };
       }
-    })
-    .withMetadata({
-      category: ToolCategory.MAILBOX,
-      version: '1.0.0',
-      requiresAuth: true,
-      rateLimited: true
-    })
-    .build();
 
-  // Update User Tool
-  const updateUserTool = toolBuilder
-    .withName('update_user')
-    .withDescription('Update an existing user\'s properties')
-    .withInputSchema({
-      type: 'object',
-      properties: {
-        username: { type: 'string', description: 'Username to update' },
-        quota: { type: 'number', description: 'New mailbox quota in MB' },
-        password: { type: 'string', description: 'New password' },
-        name: { type: 'string', description: 'New display name' },
-        active: { type: 'boolean', description: 'Whether the user is active' }
-      },
-      required: ['username'],
-      additionalProperties: false
-    })
-    .withHandler(async (input: ToolInput, _context: ToolContext): Promise<ToolHandlerResult> => {
-      try {
-        const username = input.username as string;
-        const updateData: UpdateUserRequest = {};
-        
-        if (input.quota !== undefined) updateData.quota = input.quota as number;
-        if (input.password !== undefined) updateData.password = input.password as string;
-        if (input.name !== undefined) updateData.name = input.name as string;
-        if (input.active !== undefined) updateData.active = input.active as boolean;
-
-        const user = await usersAPI.updateUser(username, updateData);
-        
-        return {
-          success: true,
-          result: {
-            content: [{
-              type: 'text',
-              text: JSON.stringify({
-                message: `User '${username}' updated successfully`,
-                user
-              }, null, 2)
-            }]
-          }
-        };
-      } catch (error) {
+      // Validate input
+      const validation = this.validateInput(input);
+      if (!validation.valid) {
         return {
           success: false,
           error: {
-            code: 500,
-            message: error instanceof Error ? error.message : 'Failed to update user'
-          }
+            code: MCPErrorCode.INVALID_PARAMS,
+            message: `Input validation failed: ${validation.errors.map(e => e.message).join(', ')}`,
+          },
         };
       }
-    })
-    .withMetadata({
+
+      const {
+        domain,
+        active_only = false,
+        username,
+        created_after,
+        created_before,
+        limit = 100,
+        offset = 0,
+      } = input;
+
+      // Build API parameters
+      const params: any = {};
+      if (typeof domain === 'string') params.domain = domain;
+      if (active_only) params.active = true;
+      if (typeof username === 'string') params.username = username;
+      if (typeof created_after === 'string') params.created_after = new Date(created_after);
+      if (typeof created_before === 'string') params.created_before = new Date(created_before);
+      if (typeof limit === 'number' && limit > 0) params.limit = limit;
+      if (typeof offset === 'number' && offset >= 0) params.offset = offset;
+
+      // Fetch users from API
+      const users = await this.usersAPI.listUsers(params);
+
+      // Apply client-side filtering and pagination if needed
+      let filteredUsers = users;
+      
+      if (active_only && !params.active) {
+        filteredUsers = filteredUsers.filter(user => user.active);
+      }
+
+      if (typeof limit === 'number' && limit > 0) {
+        const startIndex = typeof offset === 'number' ? offset : 0;
+        filteredUsers = filteredUsers.slice(startIndex, startIndex + limit);
+      }
+
+      // Format results
+      const summary = {
+        total_users: users.length,
+        filtered_users: filteredUsers.length,
+        active_users: users.filter(u => u.active).length,
+        inactive_users: users.filter(u => !u.active).length,
+        filters_applied: params,
+        users: filteredUsers.map(user => ({
+          username: user.username,
+          domain: user.domain,
+          local_part: user.local_part,
+          name: user.name || 'No name set',
+          active: user.active,
+          quota: user.quota,
+          quota_used: user.quota_used,
+          quota_percent: user.quota > 0 ? Math.round((user.quota_used / user.quota) * 100) : 0,
+          created: user.created,
+          modified: user.modified,
+          attributes: user.attributes || {},
+        })),
+      };
+
+      return {
+        success: true,
+        result: ToolUtils.createJsonResult(summary),
+      };
+    } catch (error) {
+      return this.handleError(error as Error, context);
+    }
+  }
+}
+
+/**
+ * Get detailed information about a specific user
+ */
+export class GetUserTool extends BaseTool {
+  readonly name = 'get_user';
+  readonly description = 'Get detailed information about a specific user';
+  readonly inputSchema = {
+    type: 'object' as const,
+    properties: {
+      username: {
+        type: 'string' as const,
+        description: 'Full username (email address) of the user to retrieve',
+        pattern: '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\\\.[a-zA-Z]{2,}$',
+      },
+    },
+    required: ['username'],
+    additionalProperties: false,
+  };
+
+  constructor(logger: Logger, private usersAPI: UsersAPI) {
+    super(logger, {
       category: ToolCategory.MAILBOX,
       version: '1.0.0',
       requiresAuth: true,
-      rateLimited: true
-    })
-    .build();
+      rateLimited: true,
+    });
+  }
 
-  // Delete User Tool
-  const deleteUserTool = toolBuilder
-    .withName('delete_user')
-    .withDescription('Delete a user by username')
-    .withInputSchema({
-      type: 'object',
-      properties: {
-        username: { type: 'string', description: 'Username to delete' }
-      },
-      required: ['username'],
-      additionalProperties: false
-    })
-    .withHandler(async (input: ToolInput, _context: ToolContext): Promise<ToolHandlerResult> => {
-      try {
-        const username = input.username as string;
-        const success = await usersAPI.deleteUser(username);
-        
-        if (!success) {
-          return {
-            success: false,
-            error: {
-              code: 500,
-              message: `Failed to delete user '${username}'`
-            }
-          };
-        }
-        
-        return {
-          success: true,
-          result: {
-            content: [{
-              type: 'text',
-              text: JSON.stringify({
-                message: `User '${username}' deleted successfully`
-              }, null, 2)
-            }]
-          }
-        };
-      } catch (error) {
+  async execute(input: ToolInput, context: ToolContext): Promise<ToolHandlerResult> {
+    try {
+      this.logExecution(input, context, true);
+
+      // Validate permissions
+      if (!this.validatePermissions(context, ['users:read', 'mailboxes:read', 'read'])) {
         return {
           success: false,
           error: {
-            code: 500,
-            message: error instanceof Error ? error.message : 'Failed to delete user'
-          }
+            code: MCPErrorCode.AUTHORIZATION_ERROR,
+            message: 'Permission denied: requires users:read permission',
+          },
         };
       }
-    })
-    .withMetadata({
-      category: ToolCategory.MAILBOX,
-      version: '1.0.0',
-      requiresAuth: true,
-      rateLimited: true
-    })
-    .build();
 
-  // Activate User Tool
-  const activateUserTool = toolBuilder
-    .withName('activate_user')
-    .withDescription('Activate a user account')
-    .withInputSchema({
-      type: 'object',
-      properties: {
-        username: { type: 'string', description: 'Username to activate' }
-      },
-      required: ['username'],
-      additionalProperties: false
-    })
-    .withHandler(async (input: ToolInput, _context: ToolContext): Promise<ToolHandlerResult> => {
-      try {
-        const username = input.username as string;
-        const user = await usersAPI.activateUser(username);
-        
-        return {
-          success: true,
-          result: {
-            content: [{
-              type: 'text',
-              text: JSON.stringify({
-                message: `User '${username}' activated successfully`,
-                user
-              }, null, 2)
-            }]
-          }
-        };
-      } catch (error) {
+      // Validate input
+      const validation = this.validateInput(input);
+      if (!validation.valid) {
         return {
           success: false,
           error: {
-            code: 500,
-            message: error instanceof Error ? error.message : 'Failed to activate user'
-          }
+            code: MCPErrorCode.INVALID_PARAMS,
+            message: `Input validation failed: ${validation.errors.map(e => e.message).join(', ')}`,
+          },
         };
       }
-    })
-    .withMetadata({
-      category: ToolCategory.MAILBOX,
-      version: '1.0.0',
-      requiresAuth: true,
-      rateLimited: true
-    })
-    .build();
 
-  // Deactivate User Tool
-  const deactivateUserTool = toolBuilder
-    .withName('deactivate_user')
-    .withDescription('Deactivate a user account')
-    .withInputSchema({
-      type: 'object',
-      properties: {
-        username: { type: 'string', description: 'Username to deactivate' }
-      },
-      required: ['username'],
-      additionalProperties: false
-    })
-    .withHandler(async (input: ToolInput, _context: ToolContext): Promise<ToolHandlerResult> => {
-      try {
-        const username = input.username as string;
-        const user = await usersAPI.deactivateUser(username);
-        
-        return {
-          success: true,
-          result: {
-            content: [{
-              type: 'text',
-              text: JSON.stringify({
-                message: `User '${username}' deactivated successfully`,
-                user
-              }, null, 2)
-            }]
-          }
-        };
-      } catch (error) {
+      const { username } = input;
+
+      if (typeof username !== 'string') {
         return {
           success: false,
           error: {
-            code: 500,
-            message: error instanceof Error ? error.message : 'Failed to deactivate user'
-          }
+            code: MCPErrorCode.INVALID_PARAMS,
+            message: 'Username must be a string',
+          },
         };
       }
-    })
-    .withMetadata({
-      category: ToolCategory.MAILBOX,
-      version: '1.0.0',
-      requiresAuth: true,
-      rateLimited: true
-    })
-    .build();
 
-  // Get Users by Domain Tool
-  const getUsersByDomainTool = toolBuilder
-    .withName('get_users_by_domain')
-    .withDescription('Get all users for a specific domain')
-    .withInputSchema({
-      type: 'object',
-      properties: {
-        domain: { type: 'string', description: 'Domain to get users for' }
-      },
-      required: ['domain'],
-      additionalProperties: false
-    })
-    .withHandler(async (input: ToolInput, _context: ToolContext): Promise<ToolHandlerResult> => {
-      try {
-        const domain = input.domain as string;
-        const users = await usersAPI.getUsersByDomain(domain);
-        
-        return {
-          success: true,
-          result: {
-            content: [{
-              type: 'text',
-              text: JSON.stringify({
-                users,
-                domain,
-                total: users.length
-              }, null, 2)
-            }]
-          }
-        };
-      } catch (error) {
+      // Fetch user details
+      const userDetails = await this.usersAPI.getUser(username);
+
+      if (!userDetails) {
         return {
           success: false,
           error: {
-            code: 500,
-            message: error instanceof Error ? error.message : 'Failed to get users by domain'
-          }
+            code: MCPErrorCode.RESOURCE_NOT_FOUND,
+            message: `User '${username}' not found`,
+          },
         };
       }
-    })
-    .withMetadata({
+
+      const formattedUser = {
+        username: userDetails.username,
+        domain: userDetails.domain,
+        local_part: userDetails.local_part,
+        name: userDetails.name || 'No name set',
+        active: userDetails.active,
+        status: userDetails.active ? 'Active' : 'Inactive',
+        quota_details: {
+          quota: userDetails.quota,
+          quota_used: userDetails.quota_used,
+          quota_available: Math.max(0, userDetails.quota - userDetails.quota_used),
+          usage_percent: userDetails.quota > 0 
+            ? Math.round((userDetails.quota_used / userDetails.quota) * 100) 
+            : 0,
+          quota_status: userDetails.quota > 0 && userDetails.quota_used >= userDetails.quota 
+            ? 'Full' 
+            : userDetails.quota > 0 && (userDetails.quota_used / userDetails.quota) > 0.9 
+            ? 'Nearly Full' 
+            : 'Available',
+        },
+        timestamps: {
+          created: userDetails.created,
+          last_modified: userDetails.modified,
+        },
+        attributes: userDetails.attributes || {},
+        user_id: userDetails.id,
+      };
+
+      return {
+        success: true,
+        result: ToolUtils.createJsonResult(formattedUser),
+      };
+    } catch (error) {
+      return this.handleError(error as Error, context);
+    }
+  }
+}
+
+/**
+ * Create a new user
+ */
+export class CreateUserTool extends BaseTool {
+  readonly name = 'create_user';
+  readonly description = 'Create a new user in the Mailcow server';
+  readonly inputSchema = {
+    type: 'object' as const,
+    properties: {
+      local_part: {
+        type: 'string' as const,
+        description: 'Local part of the email address (before @)',
+        pattern: '^[a-zA-Z0-9._%+-]+$',
+        maxLength: 64,
+      },
+      domain: {
+        type: 'string' as const,
+        description: 'Domain for the user',
+        pattern: '^[a-zA-Z0-9][a-zA-Z0-9\\\\\\\\-]{0,61}[a-zA-Z0-9](?:\\\\\\\\.[a-zA-Z0-9][a-zA-Z0-9\\\\\\\\-]{0,61}[a-zA-Z0-9])*$',
+      },
+      password: {
+        type: 'string' as const,
+        description: 'Password for the user',
+        minLength: 8,
+        maxLength: 128,
+      },
+      quota: {
+        type: 'number' as const,
+        description: 'User quota in MB',
+        minimum: 0,
+        maximum: 100000,
+      },
+      name: {
+        type: 'string' as const,
+        description: 'Full name for the user',
+        maxLength: 255,
+      },
+      active: {
+        type: 'boolean' as const,
+        description: 'Whether the user should be active',
+      },
+    },
+    required: ['local_part', 'domain', 'password', 'quota'],
+    additionalProperties: false,
+  };
+
+  constructor(logger: Logger, private usersAPI: UsersAPI) {
+    super(logger, {
       category: ToolCategory.MAILBOX,
       version: '1.0.0',
       requiresAuth: true,
-      rateLimited: true
-    })
-    .build();
+      rateLimited: true,
+    });
+  }
 
-  return [
-    listUsersTool,
-    getUserTool,
-    createUserTool,
-    updateUserTool,
-    deleteUserTool,
-    activateUserTool,
-    deactivateUserTool,
-    getUsersByDomainTool
-  ];
-} 
+  async execute(input: ToolInput, context: ToolContext): Promise<ToolHandlerResult> {
+    try {
+      this.logExecution(input, context, true);
+
+      // Validate permissions
+      if (!this.validatePermissions(context, ['users:write', 'mailboxes:write', 'write'])) {
+        return {
+          success: false,
+          error: {
+            code: MCPErrorCode.AUTHORIZATION_ERROR,
+            message: 'Permission denied: requires users:write permission',
+          },
+        };
+      }
+
+      // Validate input
+      const validation = this.validateInput(input);
+      if (!validation.valid) {
+        return {
+          success: false,
+          error: {
+            code: MCPErrorCode.INVALID_PARAMS,
+            message: `Input validation failed: ${validation.errors.map(e => e.message).join(', ')}`,
+          },
+        };
+      }
+
+      const {
+        local_part,
+        domain,
+        password,
+        quota,
+        name,
+        active = true
+      } = input;
+
+      // Validate required string/number fields
+      if (typeof local_part !== 'string' || typeof domain !== 'string' || 
+          typeof password !== 'string' || typeof quota !== 'number') {
+        return {
+          success: false,
+          error: {
+            code: MCPErrorCode.INVALID_PARAMS,
+            message: 'local_part, domain, and password must be strings, quota must be a number',
+          },
+        };
+      }
+
+      // Create user request
+      const userRequest: CreateUserRequest = {
+        local_part,
+        domain,
+        password,
+        quota,
+        name: typeof name === 'string' ? name : undefined,
+        active: typeof active === 'boolean' ? active : true,
+      };
+
+      // Create user
+      const createdUser = await this.usersAPI.createUser(userRequest);
+
+      const result = {
+        message: `User '${createdUser.username}' created successfully`,
+        user: {
+          username: createdUser.username,
+          domain: createdUser.domain,
+          local_part: createdUser.local_part,
+          name: createdUser.name || 'No name set',
+          active: createdUser.active,
+          quota: createdUser.quota,
+          quota_used: createdUser.quota_used,
+          created: createdUser.created,
+          user_id: createdUser.id,
+        },
+      };
+
+      return {
+        success: true,
+        result: ToolUtils.createJsonResult(result),
+      };
+    } catch (error) {
+      return this.handleError(error as Error, context);
+    }
+  }
+}
+
+/**
+ * Update an existing user
+ */
+export class UpdateUserTool extends BaseTool {
+  readonly name = 'update_user';
+  readonly description = 'Update settings for an existing user';
+  readonly inputSchema = {
+    type: 'object' as const,
+    properties: {
+      username: {
+        type: 'string' as const,
+        description: 'Full username (email address) of the user to update',
+        pattern: '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\\\.[a-zA-Z]{2,}$',
+      },
+      quota: {
+        type: 'number' as const,
+        description: 'Updated user quota in MB',
+        minimum: 0,
+        maximum: 100000,
+      },
+      password: {
+        type: 'string' as const,
+        description: 'Updated password for the user',
+        minLength: 8,
+        maxLength: 128,
+      },
+      name: {
+        type: 'string' as const,
+        description: 'Updated full name for the user',
+        maxLength: 255,
+      },
+      active: {
+        type: 'boolean' as const,
+        description: 'Whether the user should be active',
+      },
+    },
+    required: ['username'],
+    additionalProperties: false,
+  };
+
+  constructor(logger: Logger, private usersAPI: UsersAPI) {
+    super(logger, {
+      category: ToolCategory.MAILBOX,
+      version: '1.0.0',
+      requiresAuth: true,
+      rateLimited: true,
+    });
+  }
+
+  async execute(input: ToolInput, context: ToolContext): Promise<ToolHandlerResult> {
+    try {
+      this.logExecution(input, context, true);
+
+      // Validate permissions
+      if (!this.validatePermissions(context, ['users:write', 'mailboxes:write', 'write'])) {
+        return {
+          success: false,
+          error: {
+            code: MCPErrorCode.AUTHORIZATION_ERROR,
+            message: 'Permission denied: requires users:write permission',
+          },
+        };
+      }
+
+      // Validate input
+      const validation = this.validateInput(input);
+      if (!validation.valid) {
+        return {
+          success: false,
+          error: {
+            code: MCPErrorCode.INVALID_PARAMS,
+            message: `Input validation failed: ${validation.errors.map(e => e.message).join(', ')}`,
+          },
+        };
+      }
+
+      const { username, quota, password, name, active } = input;
+
+      if (typeof username !== 'string') {
+        return {
+          success: false,
+          error: {
+            code: MCPErrorCode.INVALID_PARAMS,
+            message: 'Username must be a string',
+          },
+        };
+      }
+
+      // Check if user exists
+      const existingUser = await this.usersAPI.getUser(username);
+      if (!existingUser) {
+        return {
+          success: false,
+          error: {
+            code: MCPErrorCode.RESOURCE_NOT_FOUND,
+            message: `User '${username}' not found`,
+          },
+        };
+      }
+
+      // Build update request (only include provided fields)
+      const updateRequest: UpdateUserRequest = {};
+      if (quota !== undefined && typeof quota === 'number') updateRequest.quota = quota;
+      if (password !== undefined && typeof password === 'string') updateRequest.password = password;
+      if (name !== undefined && typeof name === 'string') updateRequest.name = name;
+      if (active !== undefined && typeof active === 'boolean') updateRequest.active = active;
+
+      // Check if there are any updates to apply
+      if (Object.keys(updateRequest).length === 0) {
+        return {
+          success: false,
+          error: {
+            code: MCPErrorCode.INVALID_PARAMS,
+            message: 'No update parameters provided',
+          },
+        };
+      }
+
+      // Update user
+      const updatedUser = await this.usersAPI.updateUser(username, updateRequest);
+
+      const result = {
+        message: `User '${updatedUser.username}' updated successfully`,
+        user: {
+          username: updatedUser.username,
+          domain: updatedUser.domain,
+          local_part: updatedUser.local_part,
+          name: updatedUser.name || 'No name set',
+          active: updatedUser.active,
+          status: updatedUser.active ? 'Active' : 'Inactive',
+          quota: updatedUser.quota,
+          quota_used: updatedUser.quota_used,
+          last_modified: updatedUser.modified,
+          user_id: updatedUser.id,
+        },
+        updated_fields: Object.keys(updateRequest),
+      };
+
+      return {
+        success: true,
+        result: ToolUtils.createJsonResult(result),
+      };
+    } catch (error) {
+      return this.handleError(error as Error, context);
+    }
+  }
+}
+
+/**
+ * Delete a user
+ */
+export class DeleteUserTool extends BaseTool {
+  readonly name = 'delete_user';
+  readonly description = 'Delete a user from the Mailcow server (WARNING: This will permanently delete all emails!)';
+  readonly inputSchema = {
+    type: 'object' as const,
+    properties: {
+      username: {
+        type: 'string' as const,
+        description: 'Full username (email address) of the user to delete',
+        pattern: '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\\\.[a-zA-Z]{2,}$',
+      },
+      confirm: {
+        type: 'boolean' as const,
+        description: 'Confirmation that you want to delete the user and ALL associated emails',
+      },
+    },
+    required: ['username', 'confirm'],
+    additionalProperties: false,
+  };
+
+  constructor(logger: Logger, private usersAPI: UsersAPI) {
+    super(logger, {
+      category: ToolCategory.MAILBOX,
+      version: '1.0.0',
+      requiresAuth: true,
+      rateLimited: true,
+    });
+  }
+
+  async execute(input: ToolInput, context: ToolContext): Promise<ToolHandlerResult> {
+    try {
+      this.logExecution(input, context, true);
+
+      // Validate permissions
+      if (!this.validatePermissions(context, ['users:delete', 'mailboxes:delete', 'write'])) {
+        return {
+          success: false,
+          error: {
+            code: MCPErrorCode.AUTHORIZATION_ERROR,
+            message: 'Permission denied: requires users:delete permission',
+          },
+        };
+      }
+
+      // Validate input
+      const validation = this.validateInput(input);
+      if (!validation.valid) {
+        return {
+          success: false,
+          error: {
+            code: MCPErrorCode.INVALID_PARAMS,
+            message: `Input validation failed: ${validation.errors.map(e => e.message).join(', ')}`,
+          },
+        };
+      }
+
+      const { username, confirm } = input;
+
+      if (typeof username !== 'string') {
+        return {
+          success: false,
+          error: {
+            code: MCPErrorCode.INVALID_PARAMS,
+            message: 'Username must be a string',
+          },
+        };
+      }
+
+      if (typeof confirm !== 'boolean') {
+        return {
+          success: false,
+          error: {
+            code: MCPErrorCode.INVALID_PARAMS,
+            message: 'Confirm must be a boolean',
+          },
+        };
+      }
+
+      // Check confirmation
+      if (!confirm) {
+        return {
+          success: false,
+          error: {
+            code: MCPErrorCode.INVALID_PARAMS,
+            message: 'User deletion requires explicit confirmation (confirm: true)',
+          },
+        };
+      }
+
+      // Check if user exists and get details first
+      const userDetails = await this.usersAPI.getUser(username);
+      if (!userDetails) {
+        return {
+          success: false,
+          error: {
+            code: MCPErrorCode.RESOURCE_NOT_FOUND,
+            message: `User '${username}' not found`,
+          },
+        };
+      }
+
+      // Delete user
+      const success = await this.usersAPI.deleteUser(username);
+
+      if (!success) {
+        return {
+          success: false,
+          error: {
+            code: MCPErrorCode.INTERNAL_ERROR,
+            message: `Failed to delete user '${username}'`,
+          },
+        };
+      }
+
+      const result = {
+        message: `User '${username}' deleted successfully`,
+        deleted_user: {
+          username: userDetails.username,
+          domain: userDetails.domain,
+          local_part: userDetails.local_part,
+          name: userDetails.name || 'No name set',
+          was_active: userDetails.active,
+          quota: userDetails.quota,
+          quota_used: userDetails.quota_used,
+          deleted_at: new Date().toISOString(),
+          user_id: userDetails.id,
+        },
+        warning: 'All emails for this user have been permanently deleted and cannot be recovered',
+      };
+
+      return {
+        success: true,
+        result: ToolUtils.createJsonResult(result),
+      };
+    } catch (error) {
+      return this.handleError(error as Error, context);
+    }
+  }
+}
+
+// Export all user tools
+export const UserTools = {
+  ListUsersTool,
+  GetUserTool,
+  CreateUserTool,
+  UpdateUserTool,
+  DeleteUserTool,
+};

@@ -65,11 +65,27 @@ npm start
 ```
 
 ## 📋 Available MCP Tools
+
+### System Tools
 - `health_check` - Server health status
 - `get_config` - Current configuration (sanitized)
 - `test_api_connection` - Test Mailcow API connectivity
 
-**More tools coming soon!** 🛠️
+### Domain Management Tools ✨
+- `list_domains` - List all domains with optional filtering
+- `get_domain` - Get detailed information about a specific domain
+- `create_domain` - Create a new domain
+- `update_domain` - Update settings for an existing domain
+- `delete_domain` - Delete a domain (requires confirmation)
+
+### Mailbox Management Tools ✨
+- `list_mailboxes` - List all mailboxes with filtering and quota information
+- `get_mailbox` - Get detailed information about a specific mailbox
+- `create_mailbox` - Create a new mailbox with password and quota settings
+- `update_mailbox` - Update mailbox settings (quota, password, name, active status)
+- `delete_mailbox` - Delete a mailbox (requires explicit confirmation)
+
+**More tools coming soon!** 🛠️ (Aliases, DKIM, TLS Policies, etc.)
 
 ---
 

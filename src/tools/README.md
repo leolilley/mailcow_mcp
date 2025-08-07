@@ -16,7 +16,6 @@ tools/
 ├── base.ts               # Base tool classes and interfaces
 ├── validation.ts         # Tool input validation
 ├── errors.ts             # Tool error handling
-├── mocks.ts              # Mock implementations for testing
 ├── aliases/             # Placeholder: Alias management tools (Team K)
 ├── domains/             # Placeholder: Domain management tools (Team I)
 ├── logs/                # Placeholder: Log management tools (Team N)

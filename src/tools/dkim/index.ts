@@ -1,537 +1,738 @@
 /**
- * DKIM Tools
- * MCP tools for Mailcow DKIM key management operations
+ * DKIM Management Tools
+ * MCP tools for managing Mailcow DKIM keys
  */
 
-import { 
-  ToolInput, 
+import { BaseTool, ToolUtils } from '../base';
+import { DKIMAPI } from '../../api/dkim';
+import {
+  ToolInput,
   ToolContext,
   ToolHandlerResult,
-  ToolCategory
-} from '../../types';
-import { ToolBuilder } from '../base';
-import { Logger } from '../../utils';
-import { DKIMAPI } from '../../api';
-import { 
-  CreateDKIMRequest, 
+  CreateDKIMRequest,
   UpdateDKIMRequest,
-  ListDKIMParams 
-} from '../../types/mailcow';
+  ToolCategory,
+  MCPErrorCode,
+} from '../../types';
+import { Logger } from '../../utils';
 
 /**
- * Create DKIM management tools using the FunctionTool pattern
+ * List all DKIM keys
  */
-export function createDKIMTools(dkimAPI: DKIMAPI, logger: Logger) {
-  const toolBuilder = new ToolBuilder(logger);
-
-  // List DKIM Keys Tool
-  const listDKIMKeysTool = toolBuilder
-    .withName('list_dkim_keys')
-    .withDescription('List all DKIM keys with optional filtering by domain, selector, or algorithm')
-    .withInputSchema({
-      type: 'object',
-      properties: {
-        domain: { type: 'string', description: 'Filter by domain' },
-        active: { type: 'boolean', description: 'Filter by active status' },
-        selector: { type: 'string', description: 'Filter by selector' },
-        algorithm: { type: 'string', description: 'Filter by algorithm (rsa or ed25519)' },
-        created_after: { type: 'string', format: 'date-time', description: 'Filter by creation date (after)' },
-        created_before: { type: 'string', format: 'date-time', description: 'Filter by creation date (before)' },
-        limit: { type: 'number', description: 'Maximum number of results' },
-        offset: { type: 'number', description: 'Number of results to skip' }
+export class ListDKIMKeysTool extends BaseTool {
+  readonly name = 'list_dkim_keys';
+  readonly description = 'List all DKIM keys in the Mailcow server with optional filtering';
+  readonly inputSchema = {
+    type: 'object' as const,
+    properties: {
+      domain: {
+        type: 'string' as const,
+        description: 'Filter by specific domain',
+        pattern: '^[a-zA-Z0-9][a-zA-Z0-9\\\\\\\\-]{0,61}[a-zA-Z0-9](?:\\\\\\\\.[a-zA-Z0-9][a-zA-Z0-9\\\\\\\\-]{0,61}[a-zA-Z0-9])*$',
       },
-      additionalProperties: false
-    })
-    .withHandler(async (input: ToolInput, _context: ToolContext): Promise<ToolHandlerResult> => {
-      try {
-        const params: ListDKIMParams = {};
-        if (input.domain) params.domain = input.domain as string;
-        if (input.active !== undefined) params.active = input.active as boolean;
-        if (input.selector) params.selector = input.selector as string;
-        if (input.algorithm) params.algorithm = input.algorithm as 'rsa' | 'ed25519';
-        if (input.created_after) params.created_after = new Date(input.created_after as string);
-        if (input.created_before) params.created_before = new Date(input.created_before as string);
-        if (input.limit) params.limit = input.limit as number;
-        if (input.offset) params.offset = input.offset as number;
+      active_only: {
+        type: 'boolean' as const,
+        description: 'Only return active DKIM keys',
+      },
+      selector: {
+        type: 'string' as const,
+        description: 'Filter by DKIM selector',
+        pattern: '^[a-zA-Z0-9._-]+$',
+        maxLength: 63,
+      },
+      algorithm: {
+        type: 'string' as const,
+        description: 'Filter by algorithm (rsa or ed25519)',
+        enum: ['rsa', 'ed25519'],
+      },
+      created_after: {
+        type: 'string' as const,
+        description: 'Filter by creation date (after this date)',
+        format: 'date-time',
+      },
+      created_before: {
+        type: 'string' as const,
+        description: 'Filter by creation date (before this date)', 
+        format: 'date-time',
+      },
+      limit: {
+        type: 'number' as const,
+        description: 'Maximum number of DKIM keys to return',
+        minimum: 1,
+        maximum: 1000,
+      },
+      offset: {
+        type: 'number' as const,
+        description: 'Number of DKIM keys to skip for pagination',
+        minimum: 0,
+      },
+    },
+    additionalProperties: false,
+  };
 
-        const keys = await dkimAPI.listDKIMKeys(params);
-        
-        return {
-          success: true,
-          result: {
-            content: [{
-              type: 'text',
-              text: JSON.stringify({ keys, total: keys.length, filters: params }, null, 2)
-            }]
-          }
-        };
-      } catch (error) {
-        return {
-          success: false,
-          error: {
-            code: 500,
-            message: error instanceof Error ? error.message : 'Failed to list DKIM keys'
-          }
-        };
-      }
-    })
-    .withMetadata({
+  constructor(logger: Logger, private dkimAPI: DKIMAPI) {
+    super(logger, {
       category: ToolCategory.DOMAIN,
       version: '1.0.0',
       requiresAuth: true,
-      rateLimited: true
-    })
-    .build();
+      rateLimited: true,
+    });
+  }
 
-  // Get DKIM Key Tool
-  const getDKIMKeyTool = toolBuilder
-    .withName('get_dkim_key')
-    .withDescription('Get a specific DKIM key by domain and selector')
-    .withInputSchema({
-      type: 'object',
-      properties: {
-        domain: { type: 'string', description: 'Domain of the DKIM key' },
-        selector: { type: 'string', description: 'Selector of the DKIM key' }
-      },
-      required: ['domain', 'selector'],
-      additionalProperties: false
-    })
-    .withHandler(async (input: ToolInput, _context: ToolContext): Promise<ToolHandlerResult> => {
-      try {
-        const domain = input.domain as string;
-        const selector = input.selector as string;
-        const key = await dkimAPI.getDKIMKey(domain, selector);
-        
-        if (!key) {
-          return {
-            success: false,
-            error: {
-              code: 404,
-              message: `DKIM key for domain '${domain}' with selector '${selector}' not found`
-            }
-          };
-        }
-        
-        return {
-          success: true,
-          result: {
-            content: [{
-              type: 'text',
-              text: JSON.stringify({ key }, null, 2)
-            }]
-          }
-        };
-      } catch (error) {
+  async execute(input: ToolInput, context: ToolContext): Promise<ToolHandlerResult> {
+    try {
+      this.logExecution(input, context, true);
+
+      // Validate permissions
+      if (!this.validatePermissions(context, ['dkim:read', 'domains:read', 'read'])) {
         return {
           success: false,
           error: {
-            code: 500,
-            message: error instanceof Error ? error.message : 'Failed to get DKIM key'
-          }
+            code: MCPErrorCode.AUTHORIZATION_ERROR,
+            message: 'Permission denied: requires dkim:read permission',
+          },
         };
       }
-    })
-    .withMetadata({
-      category: ToolCategory.DOMAIN,
-      version: '1.0.0',
-      requiresAuth: true,
-      rateLimited: true
-    })
-    .build();
 
-  // Create DKIM Key Tool
-  const createDKIMKeyTool = toolBuilder
-    .withName('create_dkim_key')
-    .withDescription('Create a new DKIM key for a domain')
-    .withInputSchema({
-      type: 'object',
-      properties: {
-        domain: { type: 'string', description: 'Domain for the DKIM key' },
-        selector: { type: 'string', description: 'Selector for the DKIM key' },
-        key_size: { type: 'number', description: 'Key size in bits (default: 2048 for RSA)' },
-        algorithm: { type: 'string', description: 'Algorithm (rsa or ed25519)', enum: ['rsa', 'ed25519'] }
-      },
-      required: ['domain', 'selector'],
-      additionalProperties: false
-    })
-    .withHandler(async (input: ToolInput, _context: ToolContext): Promise<ToolHandlerResult> => {
-      try {
-        const dkimData: CreateDKIMRequest = {
-          domain: input.domain as string,
-          selector: input.selector as string,
-          key_size: input.key_size as number,
-          algorithm: input.algorithm as 'rsa' | 'ed25519'
-        };
-
-        const key = await dkimAPI.createDKIMKey(dkimData);
-        
-        return {
-          success: true,
-          result: {
-            content: [{
-              type: 'text',
-              text: JSON.stringify({
-                message: `DKIM key for domain '${key.domain}' with selector '${key.selector}' created successfully`,
-                key
-              }, null, 2)
-            }]
-          }
-        };
-      } catch (error) {
+      // Validate input
+      const validation = this.validateInput(input);
+      if (!validation.valid) {
         return {
           success: false,
           error: {
-            code: 500,
-            message: error instanceof Error ? error.message : 'Failed to create DKIM key'
-          }
+            code: MCPErrorCode.INVALID_PARAMS,
+            message: `Input validation failed: ${validation.errors.map(e => e.message).join(', ')}`,
+          },
         };
       }
-    })
-    .withMetadata({
+
+      const {
+        domain,
+        active_only = false,
+        selector,
+        algorithm,
+        created_after,
+        created_before,
+        limit = 100,
+        offset = 0,
+      } = input;
+
+      // Build API parameters
+      const params: any = {};
+      if (typeof domain === 'string') params.domain = domain;
+      if (active_only) params.active = true;
+      if (typeof selector === 'string') params.selector = selector;
+      if (typeof algorithm === 'string') params.algorithm = algorithm as 'rsa' | 'ed25519';
+      if (typeof created_after === 'string') params.created_after = new Date(created_after);
+      if (typeof created_before === 'string') params.created_before = new Date(created_before);
+      if (typeof limit === 'number' && limit > 0) params.limit = limit;
+      if (typeof offset === 'number' && offset >= 0) params.offset = offset;
+
+      // Fetch DKIM keys from API
+      const keys = await this.dkimAPI.listDKIMKeys(params);
+
+      // Apply client-side filtering if needed
+      let filteredKeys = keys;
+      
+      if (active_only && !params.active) {
+        filteredKeys = filteredKeys.filter(key => key.active);
+      }
+
+      if (typeof limit === 'number' && limit > 0) {
+        const startIndex = typeof offset === 'number' ? offset : 0;
+        filteredKeys = filteredKeys.slice(startIndex, startIndex + limit);
+      }
+
+      // Format results
+      const summary = {
+        total_keys: keys.length,
+        filtered_keys: filteredKeys.length,
+        active_keys: keys.filter(k => k.active).length,
+        inactive_keys: keys.filter(k => !k.active).length,
+        algorithm_breakdown: {
+          rsa: keys.filter(k => k.algorithm === 'rsa').length,
+          ed25519: keys.filter(k => k.algorithm === 'ed25519').length,
+        },
+        filters_applied: params,
+        keys: filteredKeys.map(key => ({
+          domain: key.domain,
+          selector: key.selector,
+          algorithm: key.algorithm,
+          key_size: key.key_size,
+          active: key.active,
+          public_key_preview: key.public_key ? `${key.public_key.substring(0, 50)}...` : 'N/A',
+          created: key.created,
+          modified: key.modified,
+          key_id: key.id,
+        })),
+      };
+
+      return {
+        success: true,
+        result: ToolUtils.createJsonResult(summary),
+      };
+    } catch (error) {
+      return this.handleError(error as Error, context);
+    }
+  }
+}
+
+/**
+ * Get detailed information about a specific DKIM key
+ */
+export class GetDKIMKeyTool extends BaseTool {
+  readonly name = 'get_dkim_key';
+  readonly description = 'Get detailed information about a specific DKIM key';
+  readonly inputSchema = {
+    type: 'object' as const,
+    properties: {
+      domain: {
+        type: 'string' as const,
+        description: 'Domain of the DKIM key',
+        pattern: '^[a-zA-Z0-9][a-zA-Z0-9\\\\\\\\-]{0,61}[a-zA-Z0-9](?:\\\\\\\\.[a-zA-Z0-9][a-zA-Z0-9\\\\\\\\-]{0,61}[a-zA-Z0-9])*$',
+      },
+      selector: {
+        type: 'string' as const,
+        description: 'Selector of the DKIM key',
+        pattern: '^[a-zA-Z0-9._-]+$',
+        maxLength: 63,
+      },
+    },
+    required: ['domain', 'selector'],
+    additionalProperties: false,
+  };
+
+  constructor(logger: Logger, private dkimAPI: DKIMAPI) {
+    super(logger, {
       category: ToolCategory.DOMAIN,
       version: '1.0.0',
       requiresAuth: true,
-      rateLimited: true
-    })
-    .build();
+      rateLimited: true,
+    });
+  }
 
-  // Update DKIM Key Tool
-  const updateDKIMKeyTool = toolBuilder
-    .withName('update_dkim_key')
-    .withDescription('Update an existing DKIM key')
-    .withInputSchema({
-      type: 'object',
-      properties: {
-        domain: { type: 'string', description: 'Domain of the DKIM key' },
-        selector: { type: 'string', description: 'Selector of the DKIM key' },
-        active: { type: 'boolean', description: 'Whether the key is active' },
-        key_size: { type: 'number', description: 'New key size in bits' },
-        algorithm: { type: 'string', description: 'New algorithm (rsa or ed25519)', enum: ['rsa', 'ed25519'] }
-      },
-      required: ['domain', 'selector'],
-      additionalProperties: false
-    })
-    .withHandler(async (input: ToolInput, _context: ToolContext): Promise<ToolHandlerResult> => {
-      try {
-        const domain = input.domain as string;
-        const selector = input.selector as string;
-        const updateData: UpdateDKIMRequest = {};
-        
-        if (input.active !== undefined) updateData.active = input.active as boolean;
-        if (input.key_size !== undefined) updateData.key_size = input.key_size as number;
-        if (input.algorithm !== undefined) updateData.algorithm = input.algorithm as 'rsa' | 'ed25519';
+  async execute(input: ToolInput, context: ToolContext): Promise<ToolHandlerResult> {
+    try {
+      this.logExecution(input, context, true);
 
-        const key = await dkimAPI.updateDKIMKey(domain, selector, updateData);
-        
-        return {
-          success: true,
-          result: {
-            content: [{
-              type: 'text',
-              text: JSON.stringify({
-                message: `DKIM key for domain '${domain}' with selector '${selector}' updated successfully`,
-                key
-              }, null, 2)
-            }]
-          }
-        };
-      } catch (error) {
+      // Validate permissions
+      if (!this.validatePermissions(context, ['dkim:read', 'domains:read', 'read'])) {
         return {
           success: false,
           error: {
-            code: 500,
-            message: error instanceof Error ? error.message : 'Failed to update DKIM key'
-          }
+            code: MCPErrorCode.AUTHORIZATION_ERROR,
+            message: 'Permission denied: requires dkim:read permission',
+          },
         };
       }
-    })
-    .withMetadata({
-      category: ToolCategory.DOMAIN,
-      version: '1.0.0',
-      requiresAuth: true,
-      rateLimited: true
-    })
-    .build();
 
-  // Delete DKIM Key Tool
-  const deleteDKIMKeyTool = toolBuilder
-    .withName('delete_dkim_key')
-    .withDescription('Delete a DKIM key by domain and selector')
-    .withInputSchema({
-      type: 'object',
-      properties: {
-        domain: { type: 'string', description: 'Domain of the DKIM key' },
-        selector: { type: 'string', description: 'Selector of the DKIM key' }
-      },
-      required: ['domain', 'selector'],
-      additionalProperties: false
-    })
-    .withHandler(async (input: ToolInput, _context: ToolContext): Promise<ToolHandlerResult> => {
-      try {
-        const domain = input.domain as string;
-        const selector = input.selector as string;
-        const success = await dkimAPI.deleteDKIMKey(domain, selector);
-        
-        if (!success) {
-          return {
-            success: false,
-            error: {
-              code: 500,
-              message: `Failed to delete DKIM key for domain '${domain}' with selector '${selector}'`
-            }
-          };
-        }
-        
-        return {
-          success: true,
-          result: {
-            content: [{
-              type: 'text',
-              text: JSON.stringify({
-                message: `DKIM key for domain '${domain}' with selector '${selector}' deleted successfully`
-              }, null, 2)
-            }]
-          }
-        };
-      } catch (error) {
+      // Validate input
+      const validation = this.validateInput(input);
+      if (!validation.valid) {
         return {
           success: false,
           error: {
-            code: 500,
-            message: error instanceof Error ? error.message : 'Failed to delete DKIM key'
-          }
+            code: MCPErrorCode.INVALID_PARAMS,
+            message: `Input validation failed: ${validation.errors.map(e => e.message).join(', ')}`,
+          },
         };
       }
-    })
-    .withMetadata({
-      category: ToolCategory.DOMAIN,
-      version: '1.0.0',
-      requiresAuth: true,
-      rateLimited: true
-    })
-    .build();
 
-  // Activate DKIM Key Tool
-  const activateDKIMKeyTool = toolBuilder
-    .withName('activate_dkim_key')
-    .withDescription('Activate a DKIM key')
-    .withInputSchema({
-      type: 'object',
-      properties: {
-        domain: { type: 'string', description: 'Domain of the DKIM key' },
-        selector: { type: 'string', description: 'Selector of the DKIM key' }
-      },
-      required: ['domain', 'selector'],
-      additionalProperties: false
-    })
-    .withHandler(async (input: ToolInput, _context: ToolContext): Promise<ToolHandlerResult> => {
-      try {
-        const domain = input.domain as string;
-        const selector = input.selector as string;
-        const key = await dkimAPI.activateDKIMKey(domain, selector);
-        
-        return {
-          success: true,
-          result: {
-            content: [{
-              type: 'text',
-              text: JSON.stringify({
-                message: `DKIM key for domain '${domain}' with selector '${selector}' activated successfully`,
-                key
-              }, null, 2)
-            }]
-          }
-        };
-      } catch (error) {
+      const { domain, selector } = input;
+
+      if (typeof domain !== 'string' || typeof selector !== 'string') {
         return {
           success: false,
           error: {
-            code: 500,
-            message: error instanceof Error ? error.message : 'Failed to activate DKIM key'
-          }
+            code: MCPErrorCode.INVALID_PARAMS,
+            message: 'Domain and selector must be strings',
+          },
         };
       }
-    })
-    .withMetadata({
-      category: ToolCategory.DOMAIN,
-      version: '1.0.0',
-      requiresAuth: true,
-      rateLimited: true
-    })
-    .build();
 
-  // Deactivate DKIM Key Tool
-  const deactivateDKIMKeyTool = toolBuilder
-    .withName('deactivate_dkim_key')
-    .withDescription('Deactivate a DKIM key')
-    .withInputSchema({
-      type: 'object',
-      properties: {
-        domain: { type: 'string', description: 'Domain of the DKIM key' },
-        selector: { type: 'string', description: 'Selector of the DKIM key' }
-      },
-      required: ['domain', 'selector'],
-      additionalProperties: false
-    })
-    .withHandler(async (input: ToolInput, _context: ToolContext): Promise<ToolHandlerResult> => {
-      try {
-        const domain = input.domain as string;
-        const selector = input.selector as string;
-        const key = await dkimAPI.deactivateDKIMKey(domain, selector);
-        
-        return {
-          success: true,
-          result: {
-            content: [{
-              type: 'text',
-              text: JSON.stringify({
-                message: `DKIM key for domain '${domain}' with selector '${selector}' deactivated successfully`,
-                key
-              }, null, 2)
-            }]
-          }
-        };
-      } catch (error) {
+      // Fetch DKIM key details
+      const keyDetails = await this.dkimAPI.getDKIMKey(domain, selector);
+
+      if (!keyDetails) {
         return {
           success: false,
           error: {
-            code: 500,
-            message: error instanceof Error ? error.message : 'Failed to deactivate DKIM key'
-          }
+            code: MCPErrorCode.RESOURCE_NOT_FOUND,
+            message: `DKIM key for domain '${domain}' with selector '${selector}' not found`,
+          },
         };
       }
-    })
-    .withMetadata({
+
+      // Generate DNS record for the key
+      const dnsRecord = this.dkimAPI.generateDKIMDNSRecord(keyDetails);
+
+      const formattedKey = {
+        domain: keyDetails.domain,
+        selector: keyDetails.selector,
+        algorithm: keyDetails.algorithm,
+        key_size: keyDetails.key_size,
+        active: keyDetails.active,
+        status: keyDetails.active ? 'Active' : 'Inactive',
+        public_key: keyDetails.public_key,
+        dns_record: dnsRecord,
+        dns_host: `${keyDetails.selector}._domainkey.${keyDetails.domain}`,
+        timestamps: {
+          created: keyDetails.created,
+          last_modified: keyDetails.modified,
+        },
+        validation_status: this.dkimAPI.validateDKIMKey(keyDetails) ? 'Valid' : 'Invalid',
+        key_id: keyDetails.id,
+      };
+
+      return {
+        success: true,
+        result: ToolUtils.createJsonResult(formattedKey),
+      };
+    } catch (error) {
+      return this.handleError(error as Error, context);
+    }
+  }
+}
+
+/**
+ * Create a new DKIM key
+ */
+export class CreateDKIMKeyTool extends BaseTool {
+  readonly name = 'create_dkim_key';
+  readonly description = 'Create a new DKIM key for a domain in the Mailcow server';
+  readonly inputSchema = {
+    type: 'object' as const,
+    properties: {
+      domain: {
+        type: 'string' as const,
+        description: 'Domain for the DKIM key',
+        pattern: '^[a-zA-Z0-9][a-zA-Z0-9\\\\\\\\-]{0,61}[a-zA-Z0-9](?:\\\\\\\\.[a-zA-Z0-9][a-zA-Z0-9\\\\\\\\-]{0,61}[a-zA-Z0-9])*$',
+      },
+      selector: {
+        type: 'string' as const,
+        description: 'Selector for the DKIM key (unique identifier)',
+        pattern: '^[a-zA-Z0-9._-]+$',
+        maxLength: 63,
+      },
+      key_size: {
+        type: 'number' as const,
+        description: 'Key size in bits (1024, 2048, or 4096 for RSA)',
+        minimum: 1024,
+        maximum: 4096,
+      },
+      algorithm: {
+        type: 'string' as const,
+        description: 'Algorithm for the DKIM key',
+        enum: ['rsa', 'ed25519'],
+      },
+    },
+    required: ['domain', 'selector'],
+    additionalProperties: false,
+  };
+
+  constructor(logger: Logger, private dkimAPI: DKIMAPI) {
+    super(logger, {
       category: ToolCategory.DOMAIN,
       version: '1.0.0',
       requiresAuth: true,
-      rateLimited: true
-    })
-    .build();
+      rateLimited: true,
+    });
+  }
 
-  // Get DKIM Keys by Domain Tool
-  const getDKIMKeysByDomainTool = toolBuilder
-    .withName('get_dkim_keys_by_domain')
-    .withDescription('Get all DKIM keys for a specific domain')
-    .withInputSchema({
-      type: 'object',
-      properties: {
-        domain: { type: 'string', description: 'Domain to get DKIM keys for' }
-      },
-      required: ['domain'],
-      additionalProperties: false
-    })
-    .withHandler(async (input: ToolInput, _context: ToolContext): Promise<ToolHandlerResult> => {
-      try {
-        const domain = input.domain as string;
-        const keys = await dkimAPI.getDKIMKeysByDomain(domain);
-        
-        return {
-          success: true,
-          result: {
-            content: [{
-              type: 'text',
-              text: JSON.stringify({
-                keys,
-                domain,
-                total: keys.length
-              }, null, 2)
-            }]
-          }
-        };
-      } catch (error) {
+  async execute(input: ToolInput, context: ToolContext): Promise<ToolHandlerResult> {
+    try {
+      this.logExecution(input, context, true);
+
+      // Validate permissions
+      if (!this.validatePermissions(context, ['dkim:write', 'domains:write', 'write'])) {
         return {
           success: false,
           error: {
-            code: 500,
-            message: error instanceof Error ? error.message : 'Failed to get DKIM keys by domain'
-          }
+            code: MCPErrorCode.AUTHORIZATION_ERROR,
+            message: 'Permission denied: requires dkim:write permission',
+          },
         };
       }
-    })
-    .withMetadata({
-      category: ToolCategory.DOMAIN,
-      version: '1.0.0',
-      requiresAuth: true,
-      rateLimited: true
-    })
-    .build();
 
-  // Generate DNS Record Tool
-  const generateDNSRecordTool = toolBuilder
-    .withName('generate_dkim_dns_record')
-    .withDescription('Generate DNS record for a DKIM key')
-    .withInputSchema({
-      type: 'object',
-      properties: {
-        domain: { type: 'string', description: 'Domain of the DKIM key' },
-        selector: { type: 'string', description: 'Selector of the DKIM key' }
-      },
-      required: ['domain', 'selector'],
-      additionalProperties: false
-    })
-    .withHandler(async (input: ToolInput, _context: ToolContext): Promise<ToolHandlerResult> => {
-      try {
-        const domain = input.domain as string;
-        const selector = input.selector as string;
-        const key = await dkimAPI.getDKIMKey(domain, selector);
-        
-        if (!key) {
-          return {
-            success: false,
-            error: {
-              code: 404,
-              message: `DKIM key for domain '${domain}' with selector '${selector}' not found`
-            }
-          };
-        }
-        
-        const dnsRecord = dkimAPI.generateDKIMDNSRecord(key);
-        
-        return {
-          success: true,
-          result: {
-            content: [{
-              type: 'text',
-              text: JSON.stringify({
-                dns_record: dnsRecord,
-                key_info: {
-                  domain: key.domain,
-                  selector: key.selector,
-                  algorithm: key.algorithm,
-                  key_size: key.key_size
-                }
-              }, null, 2)
-            }]
-          }
-        };
-      } catch (error) {
+      // Validate input
+      const validation = this.validateInput(input);
+      if (!validation.valid) {
         return {
           success: false,
           error: {
-            code: 500,
-            message: error instanceof Error ? error.message : 'Failed to generate DNS record'
-          }
+            code: MCPErrorCode.INVALID_PARAMS,
+            message: `Input validation failed: ${validation.errors.map(e => e.message).join(', ')}`,
+          },
         };
       }
-    })
-    .withMetadata({
+
+      const {
+        domain,
+        selector,
+        key_size = 2048,
+        algorithm = 'rsa',
+      } = input;
+
+      // Validate required string fields
+      if (typeof domain !== 'string' || typeof selector !== 'string') {
+        return {
+          success: false,
+          error: {
+            code: MCPErrorCode.INVALID_PARAMS,
+            message: 'Domain and selector must be strings',
+          },
+        };
+      }
+
+      // Create DKIM key request
+      const dkimRequest: CreateDKIMRequest = {
+        domain,
+        selector,
+        key_size: typeof key_size === 'number' ? key_size : 2048,
+        algorithm: typeof algorithm === 'string' ? algorithm as 'rsa' | 'ed25519' : 'rsa',
+      };
+
+      // Create DKIM key
+      const createdKey = await this.dkimAPI.createDKIMKey(dkimRequest);
+
+      // Generate DNS record for the new key
+      const dnsRecord = this.dkimAPI.generateDKIMDNSRecord(createdKey);
+
+      const result = {
+        message: `DKIM key for domain '${createdKey.domain}' with selector '${createdKey.selector}' created successfully`,
+        dkim_key: {
+          domain: createdKey.domain,
+          selector: createdKey.selector,
+          algorithm: createdKey.algorithm,
+          key_size: createdKey.key_size,
+          active: createdKey.active,
+          public_key: createdKey.public_key,
+          created: createdKey.created,
+          key_id: createdKey.id,
+        },
+        dns_configuration: {
+          dns_record: dnsRecord,
+          host: `${createdKey.selector}._domainkey.${createdKey.domain}`,
+          instructions: 'Add this TXT record to your DNS configuration to enable DKIM signing',
+        },
+      };
+
+      return {
+        success: true,
+        result: ToolUtils.createJsonResult(result),
+      };
+    } catch (error) {
+      return this.handleError(error as Error, context);
+    }
+  }
+}
+
+/**
+ * Update an existing DKIM key
+ */
+export class UpdateDKIMKeyTool extends BaseTool {
+  readonly name = 'update_dkim_key';
+  readonly description = 'Update settings for an existing DKIM key';
+  readonly inputSchema = {
+    type: 'object' as const,
+    properties: {
+      domain: {
+        type: 'string' as const,
+        description: 'Domain of the DKIM key to update',
+        pattern: '^[a-zA-Z0-9][a-zA-Z0-9\\\\\\\\-]{0,61}[a-zA-Z0-9](?:\\\\\\\\.[a-zA-Z0-9][a-zA-Z0-9\\\\\\\\-]{0,61}[a-zA-Z0-9])*$',
+      },
+      selector: {
+        type: 'string' as const,
+        description: 'Selector of the DKIM key to update',
+        pattern: '^[a-zA-Z0-9._-]+$',
+        maxLength: 63,
+      },
+      active: {
+        type: 'boolean' as const,
+        description: 'Whether the DKIM key should be active',
+      },
+      key_size: {
+        type: 'number' as const,
+        description: 'Updated key size in bits',
+        minimum: 1024,
+        maximum: 4096,
+      },
+      algorithm: {
+        type: 'string' as const,
+        description: 'Updated algorithm for the DKIM key',
+        enum: ['rsa', 'ed25519'],
+      },
+    },
+    required: ['domain', 'selector'],
+    additionalProperties: false,
+  };
+
+  constructor(logger: Logger, private dkimAPI: DKIMAPI) {
+    super(logger, {
       category: ToolCategory.DOMAIN,
       version: '1.0.0',
       requiresAuth: true,
-      rateLimited: true
-    })
-    .build();
+      rateLimited: true,
+    });
+  }
 
-  return [
-    listDKIMKeysTool,
-    getDKIMKeyTool,
-    createDKIMKeyTool,
-    updateDKIMKeyTool,
-    deleteDKIMKeyTool,
-    activateDKIMKeyTool,
-    deactivateDKIMKeyTool,
-    getDKIMKeysByDomainTool,
-    generateDNSRecordTool
-  ];
-} 
+  async execute(input: ToolInput, context: ToolContext): Promise<ToolHandlerResult> {
+    try {
+      this.logExecution(input, context, true);
+
+      // Validate permissions
+      if (!this.validatePermissions(context, ['dkim:write', 'domains:write', 'write'])) {
+        return {
+          success: false,
+          error: {
+            code: MCPErrorCode.AUTHORIZATION_ERROR,
+            message: 'Permission denied: requires dkim:write permission',
+          },
+        };
+      }
+
+      // Validate input
+      const validation = this.validateInput(input);
+      if (!validation.valid) {
+        return {
+          success: false,
+          error: {
+            code: MCPErrorCode.INVALID_PARAMS,
+            message: `Input validation failed: ${validation.errors.map(e => e.message).join(', ')}`,
+          },
+        };
+      }
+
+      const { domain, selector, active, key_size, algorithm } = input;
+
+      if (typeof domain !== 'string' || typeof selector !== 'string') {
+        return {
+          success: false,
+          error: {
+            code: MCPErrorCode.INVALID_PARAMS,
+            message: 'Domain and selector must be strings',
+          },
+        };
+      }
+
+      // Check if DKIM key exists
+      const existingKey = await this.dkimAPI.getDKIMKey(domain, selector);
+      if (!existingKey) {
+        return {
+          success: false,
+          error: {
+            code: MCPErrorCode.RESOURCE_NOT_FOUND,
+            message: `DKIM key for domain '${domain}' with selector '${selector}' not found`,
+          },
+        };
+      }
+
+      // Build update request (only include provided fields)
+      const updateRequest: UpdateDKIMRequest = {};
+      if (active !== undefined && typeof active === 'boolean') updateRequest.active = active;
+      if (key_size !== undefined && typeof key_size === 'number') updateRequest.key_size = key_size;
+      if (algorithm !== undefined && typeof algorithm === 'string') updateRequest.algorithm = algorithm as 'rsa' | 'ed25519';
+
+      // Check if there are any updates to apply
+      if (Object.keys(updateRequest).length === 0) {
+        return {
+          success: false,
+          error: {
+            code: MCPErrorCode.INVALID_PARAMS,
+            message: 'No update parameters provided',
+          },
+        };
+      }
+
+      // Update DKIM key
+      const updatedKey = await this.dkimAPI.updateDKIMKey(domain, selector, updateRequest);
+
+      // Generate DNS record for the updated key
+      const dnsRecord = this.dkimAPI.generateDKIMDNSRecord(updatedKey);
+
+      const result = {
+        message: `DKIM key for domain '${updatedKey.domain}' with selector '${updatedKey.selector}' updated successfully`,
+        dkim_key: {
+          domain: updatedKey.domain,
+          selector: updatedKey.selector,
+          algorithm: updatedKey.algorithm,
+          key_size: updatedKey.key_size,
+          active: updatedKey.active,
+          status: updatedKey.active ? 'Active' : 'Inactive',
+          public_key: updatedKey.public_key,
+          last_modified: updatedKey.modified,
+          key_id: updatedKey.id,
+        },
+        dns_configuration: {
+          dns_record: dnsRecord,
+          host: `${updatedKey.selector}._domainkey.${updatedKey.domain}`,
+        },
+        updated_fields: Object.keys(updateRequest),
+      };
+
+      return {
+        success: true,
+        result: ToolUtils.createJsonResult(result),
+      };
+    } catch (error) {
+      return this.handleError(error as Error, context);
+    }
+  }
+}
+
+/**
+ * Delete a DKIM key
+ */
+export class DeleteDKIMKeyTool extends BaseTool {
+  readonly name = 'delete_dkim_key';
+  readonly description = 'Delete a DKIM key from the Mailcow server (WARNING: This will affect email signing!)';
+  readonly inputSchema = {
+    type: 'object' as const,
+    properties: {
+      domain: {
+        type: 'string' as const,
+        description: 'Domain of the DKIM key to delete',
+        pattern: '^[a-zA-Z0-9][a-zA-Z0-9\\\\\\\\-]{0,61}[a-zA-Z0-9](?:\\\\\\\\.[a-zA-Z0-9][a-zA-Z0-9\\\\\\\\-]{0,61}[a-zA-Z0-9])*$',
+      },
+      selector: {
+        type: 'string' as const,
+        description: 'Selector of the DKIM key to delete',
+        pattern: '^[a-zA-Z0-9._-]+$',
+        maxLength: 63,
+      },
+      confirm: {
+        type: 'boolean' as const,
+        description: 'Confirmation that you want to delete the DKIM key (affects email signing)',
+      },
+    },
+    required: ['domain', 'selector', 'confirm'],
+    additionalProperties: false,
+  };
+
+  constructor(logger: Logger, private dkimAPI: DKIMAPI) {
+    super(logger, {
+      category: ToolCategory.DOMAIN,
+      version: '1.0.0',
+      requiresAuth: true,
+      rateLimited: true,
+    });
+  }
+
+  async execute(input: ToolInput, context: ToolContext): Promise<ToolHandlerResult> {
+    try {
+      this.logExecution(input, context, true);
+
+      // Validate permissions
+      if (!this.validatePermissions(context, ['dkim:delete', 'domains:write', 'write'])) {
+        return {
+          success: false,
+          error: {
+            code: MCPErrorCode.AUTHORIZATION_ERROR,
+            message: 'Permission denied: requires dkim:delete permission',
+          },
+        };
+      }
+
+      // Validate input
+      const validation = this.validateInput(input);
+      if (!validation.valid) {
+        return {
+          success: false,
+          error: {
+            code: MCPErrorCode.INVALID_PARAMS,
+            message: `Input validation failed: ${validation.errors.map(e => e.message).join(', ')}`,
+          },
+        };
+      }
+
+      const { domain, selector, confirm } = input;
+
+      if (typeof domain !== 'string' || typeof selector !== 'string') {
+        return {
+          success: false,
+          error: {
+            code: MCPErrorCode.INVALID_PARAMS,
+            message: 'Domain and selector must be strings',
+          },
+        };
+      }
+
+      if (typeof confirm !== 'boolean') {
+        return {
+          success: false,
+          error: {
+            code: MCPErrorCode.INVALID_PARAMS,
+            message: 'Confirm must be a boolean',
+          },
+        };
+      }
+
+      // Check confirmation
+      if (!confirm) {
+        return {
+          success: false,
+          error: {
+            code: MCPErrorCode.INVALID_PARAMS,
+            message: 'DKIM key deletion requires explicit confirmation (confirm: true)',
+          },
+        };
+      }
+
+      // Check if DKIM key exists and get details first
+      const keyDetails = await this.dkimAPI.getDKIMKey(domain, selector);
+      if (!keyDetails) {
+        return {
+          success: false,
+          error: {
+            code: MCPErrorCode.RESOURCE_NOT_FOUND,
+            message: `DKIM key for domain '${domain}' with selector '${selector}' not found`,
+          },
+        };
+      }
+
+      // Delete DKIM key
+      const success = await this.dkimAPI.deleteDKIMKey(domain, selector);
+
+      if (!success) {
+        return {
+          success: false,
+          error: {
+            code: MCPErrorCode.INTERNAL_ERROR,
+            message: `Failed to delete DKIM key for domain '${domain}' with selector '${selector}'`,
+          },
+        };
+      }
+
+      const result = {
+        message: `DKIM key for domain '${domain}' with selector '${selector}' deleted successfully`,
+        deleted_key: {
+          domain: keyDetails.domain,
+          selector: keyDetails.selector,
+          algorithm: keyDetails.algorithm,
+          key_size: keyDetails.key_size,
+          was_active: keyDetails.active,
+          deleted_at: new Date().toISOString(),
+          key_id: keyDetails.id,
+        },
+        warning: 'Emails for this domain will no longer be DKIM signed until a new key is created',
+        dns_cleanup: `Remove the TXT record for ${keyDetails.selector}._domainkey.${keyDetails.domain} from your DNS configuration`,
+      };
+
+      return {
+        success: true,
+        result: ToolUtils.createJsonResult(result),
+      };
+    } catch (error) {
+      return this.handleError(error as Error, context);
+    }
+  }
+}
+
+// Export all DKIM tools
+export const DKIMTools = {
+  ListDKIMKeysTool,
+  GetDKIMKeyTool,
+  CreateDKIMKeyTool,
+  UpdateDKIMKeyTool,
+  DeleteDKIMKeyTool,
+};
