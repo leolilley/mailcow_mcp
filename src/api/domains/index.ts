@@ -52,9 +52,9 @@ export class DomainAPI {
 
   async getDomainDetails(domainId: string): Promise<MailcowDomain> {
     const domains = await this.client.get<MailcowDomain[]>(
-      buildDomainEndpoint(APIAction.GET)
+      buildDomainEndpoint(APIAction.LIST)
     );
-    const domain = domains.find((d) => d.domain === domainId);
+    const domain = domains.find((d) => d.domain_name === domainId || d.domain === domainId);
     if (!domain) {
       throw new Error(`Domain not found: ${domainId}`);
     }
