@@ -27,20 +27,17 @@ export class APIKeyManager {
     return { success: true, authenticated: true };
   }
 
-  async testAPIKeyWithMailcow(key: string): Promise<{ success: boolean; accessLevel?: AccessLevel; error?: string } > {
+  async testAPIKeyWithMailcow(_key: string): Promise<{ success: boolean; accessLevel?: AccessLevel; error?: string } > {
     // TODO: Implement actual Mailcow API test
-    console.log('Testing API key:', key);
     return { success: true, accessLevel: 'read-write' };
   }
 
-  async rotateAPIKey(oldKey: string, newKey: string): Promise<boolean> {
+  async rotateAPIKey(_oldKey: string, _newKey: string): Promise<boolean> {
     // TODO: Implement key rotation logic (update env/secure storage)
-    console.log('Rotating API key:', oldKey, 'to', newKey);
     return true;
   }
 
-  async storeAPIKeySecurely(key: string): Promise<void> {
+  async storeAPIKeySecurely(_key: string): Promise<void> {
     // TODO: Implement secure storage (e.g., encrypted file, vault)
-    console.log('Storing API key securely:', key);
   }
 } 

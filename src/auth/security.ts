@@ -15,8 +15,8 @@ export function encryptAPIKey(key: string): string {
 }
 
 export function decryptAPIKey(hash: string): string {
-  console.log('Decrypting API key hash:', hash);
   // TODO: Implement real decryption if using encryption (not hash)
+  void hash;
   return '';
 }
 
@@ -24,14 +24,11 @@ export function validateInput(input: string, pattern: RegExp): boolean {
   return pattern.test(input);
 }
 
-export function auditLog(event: string, details: Record<string, unknown>): void {
-  console.log('Audit log:', event, details);
+export function auditLog(_event: string, _details: Record<string, unknown>): void {
   // TODO: Implement audit logging (e.g., write to file, DB, or external service)
-  // Example: console.log(`[AUDIT] ${event}`, details);
 }
 
-export function rateLimitCheck(identifier: string): boolean {
-  console.log('Rate limit check for:', identifier);
+export function rateLimitCheck(_identifier: string): boolean {
   // TODO: Implement rate limiting logic (e.g., in-memory, Redis)
   return true;
 } 

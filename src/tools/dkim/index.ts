@@ -28,7 +28,7 @@ export class ListDKIMKeysTool extends BaseTool {
       domain: {
         type: 'string' as const,
         description: 'Filter by specific domain',
-        pattern: '^[a-zA-Z0-9][a-zA-Z0-9\\\\\\\\-]{0,61}[a-zA-Z0-9](?:\\\\\\\\.[a-zA-Z0-9][a-zA-Z0-9\\\\\\\\-]{0,61}[a-zA-Z0-9])*$',
+        pattern: '^[a-zA-Z0-9][a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9](?:\\.[a-zA-Z0-9][a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9])*$',
       },
       active_only: {
         type: 'boolean' as const,
@@ -189,7 +189,7 @@ export class GetDKIMKeyTool extends BaseTool {
       domain: {
         type: 'string' as const,
         description: 'Domain of the DKIM key',
-        pattern: '^[a-zA-Z0-9][a-zA-Z0-9\\\\\\\\-]{0,61}[a-zA-Z0-9](?:\\\\\\\\.[a-zA-Z0-9][a-zA-Z0-9\\\\\\\\-]{0,61}[a-zA-Z0-9])*$',
+        pattern: '^[a-zA-Z0-9][a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9](?:\\.[a-zA-Z0-9][a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9])*$',
       },
       selector: {
         type: 'string' as const,
@@ -306,7 +306,7 @@ export class CreateDKIMKeyTool extends BaseTool {
       domain: {
         type: 'string' as const,
         description: 'Domain for the DKIM key',
-        pattern: '^[a-zA-Z0-9][a-zA-Z0-9\\\\\\\\-]{0,61}[a-zA-Z0-9](?:\\\\\\\\.[a-zA-Z0-9][a-zA-Z0-9\\\\\\\\-]{0,61}[a-zA-Z0-9])*$',
+        pattern: '^[a-zA-Z0-9][a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9](?:\\.[a-zA-Z0-9][a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9])*$',
       },
       selector: {
         type: 'string' as const,
@@ -439,7 +439,7 @@ export class UpdateDKIMKeyTool extends BaseTool {
       domain: {
         type: 'string' as const,
         description: 'Domain of the DKIM key to update',
-        pattern: '^[a-zA-Z0-9][a-zA-Z0-9\\\\\\\\-]{0,61}[a-zA-Z0-9](?:\\\\\\\\.[a-zA-Z0-9][a-zA-Z0-9\\\\\\\\-]{0,61}[a-zA-Z0-9])*$',
+        pattern: '^[a-zA-Z0-9][a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9](?:\\.[a-zA-Z0-9][a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9])*$',
       },
       selector: {
         type: 'string' as const,
@@ -592,7 +592,7 @@ export class DeleteDKIMKeyTool extends BaseTool {
       domain: {
         type: 'string' as const,
         description: 'Domain of the DKIM key to delete',
-        pattern: '^[a-zA-Z0-9][a-zA-Z0-9\\\\\\\\-]{0,61}[a-zA-Z0-9](?:\\\\\\\\.[a-zA-Z0-9][a-zA-Z0-9\\\\\\\\-]{0,61}[a-zA-Z0-9])*$',
+        pattern: '^[a-zA-Z0-9][a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9](?:\\.[a-zA-Z0-9][a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9])*$',
       },
       selector: {
         type: 'string' as const,

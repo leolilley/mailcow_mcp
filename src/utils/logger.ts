@@ -2,6 +2,7 @@
 import * as fs from 'fs';
 import { LogEntry } from '../types';
 import { UtilLogLevel } from '../types/utils';
+import type { Server } from '@modelcontextprotocol/sdk/server/index.js';
 
 export interface LoggerConfig {
   level: UtilLogLevel;
@@ -16,10 +17,36 @@ export class ConsoleLogDestination implements LogDestination {
   write(entry: LogEntry): void {
     // @ts-ignore: Node.js environment, console is available
     const formatted = this.formatEntry(entry);
-    console.log(formatted);
+    console.error(formatted);
   }
   private formatEntry(entry: LogEntry): string {
     return JSON.stringify(entry, null, 2);
+  }
+}
+
+export class McpLogDestination implements LogDestination {
+  private static readonly levelMap: Record<UtilLogLevel, "debug" | "info" | "warning" | "error"> = {
+    debug: 'debug',
+    info: 'info',
+    warn: 'warning',
+    error: 'error',
+  };
+
+  constructor(private server: Server) {}
+
+  write(entry: LogEntry): void {
+    const mcpLevel = McpLogDestination.levelMap[entry.level] ?? 'info';
+    const data = entry.args.length > 0
+      ? { message: entry.message, ...((typeof entry.args[0] === 'object' && entry.args[0] !== null) ? entry.args[0] as Record<string, unknown> : { details: entry.args }) }
+      : entry.message;
+
+    this.server.sendLoggingMessage({
+      level: mcpLevel,
+      logger: 'mailcow-mcp',
+      data,
+    }).catch(() => {
+      // Best-effort: swallow errors (e.g., client not connected yet)
+    });
   }
 }
 

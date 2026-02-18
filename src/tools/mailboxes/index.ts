@@ -29,7 +29,7 @@ export class ListMailboxesTool extends BaseTool {
       domain: {
         type: 'string' as const,
         description: 'Filter by specific domain',
-        pattern: '^[a-zA-Z0-9][a-zA-Z0-9\\\\-]{0,61}[a-zA-Z0-9](?:\\\\.[a-zA-Z0-9][a-zA-Z0-9\\\\-]{0,61}[a-zA-Z0-9])*$',
+        pattern: '^[a-zA-Z0-9][a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9](?:\\.[a-zA-Z0-9][a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9])*$',
       },
       active_only: {
         type: 'boolean' as const,
@@ -287,7 +287,7 @@ export class CreateMailboxTool extends BaseTool {
       domain: {
         type: 'string' as const,
         description: 'Domain for the mailbox',
-        pattern: '^[a-zA-Z0-9][a-zA-Z0-9\\\\-]{0,61}[a-zA-Z0-9](?:\\\\.[a-zA-Z0-9][a-zA-Z0-9\\\\-]{0,61}[a-zA-Z0-9])*$',
+        pattern: '^[a-zA-Z0-9][a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9](?:\\.[a-zA-Z0-9][a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9])*$',
       },
       password: {
         type: 'string' as const,

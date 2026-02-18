@@ -18,7 +18,7 @@ import { configManager } from './config/index.js';
 import { AuthManager } from './auth/index.js';
 import { APIClient } from './api/client.js';
 import { ToolRegistry } from './tools/registry.js';
-import { Logger, ConsoleLogDestination } from './utils/logger.js';
+import { Logger, ConsoleLogDestination, McpLogDestination } from './utils/logger.js';
 
 // Import tool implementations (when they exist)
 import { DomainTools } from './tools/domains/index.js';
@@ -58,10 +58,10 @@ class MailcowMCPServer {
       }
     );
 
-    // Initialize logger
+    // Initialize logger — route through MCP SDK logging
     this.logger = new Logger(
       { level: 'info' },
-      new ConsoleLogDestination()
+      new McpLogDestination(this.server)
     );
 
     // Initialize components

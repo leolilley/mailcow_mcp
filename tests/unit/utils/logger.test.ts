@@ -1,7 +1,61 @@
 import { MockLogger } from '../../../src/utils/mocks';
 import { LogLevel } from '../../../src/types/utils';
+import { McpLogDestination } from '../../../src/utils/logger';
 
 describe('Logger', () => {
+  describe('McpLogDestination', () => {
+    it('should call server.sendLoggingMessage with correct level mapping', () => {
+      const mockServer = {
+        sendLoggingMessage: jest.fn().mockResolvedValue(undefined),
+      };
+      const destination = new McpLogDestination(mockServer as any);
+
+      destination.write({ timestamp: new Date(), level: 'info', message: 'test', args: [] });
+      expect(mockServer.sendLoggingMessage).toHaveBeenCalledWith({
+        level: 'info',
+        logger: 'mailcow-mcp',
+        data: 'test',
+      });
+    });
+
+    it('should map warn to warning', () => {
+      const mockServer = {
+        sendLoggingMessage: jest.fn().mockResolvedValue(undefined),
+      };
+      const destination = new McpLogDestination(mockServer as any);
+
+      destination.write({ timestamp: new Date(), level: 'warn', message: 'oops', args: [] });
+      expect(mockServer.sendLoggingMessage).toHaveBeenCalledWith({
+        level: 'warning',
+        logger: 'mailcow-mcp',
+        data: 'oops',
+      });
+    });
+
+    it('should include args in data when present', () => {
+      const mockServer = {
+        sendLoggingMessage: jest.fn().mockResolvedValue(undefined),
+      };
+      const destination = new McpLogDestination(mockServer as any);
+
+      destination.write({ timestamp: new Date(), level: 'error', message: 'fail', args: [{ code: 500 }] });
+      expect(mockServer.sendLoggingMessage).toHaveBeenCalledWith({
+        level: 'error',
+        logger: 'mailcow-mcp',
+        data: { message: 'fail', code: 500 },
+      });
+    });
+
+    it('should not throw if sendLoggingMessage rejects', () => {
+      const mockServer = {
+        sendLoggingMessage: jest.fn().mockRejectedValue(new Error('not connected')),
+      };
+      const destination = new McpLogDestination(mockServer as any);
+
+      expect(() => destination.write({ timestamp: new Date(), level: 'debug', message: 'x', args: [] })).not.toThrow();
+    });
+  });
+
   describe('MockLogger', () => {
     let logger: MockLogger;
 

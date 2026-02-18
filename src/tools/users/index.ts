@@ -28,7 +28,7 @@ export class ListUsersTool extends BaseTool {
       domain: {
         type: 'string' as const,
         description: 'Filter by specific domain',
-        pattern: '^[a-zA-Z0-9][a-zA-Z0-9\\\\\\\\-]{0,61}[a-zA-Z0-9](?:\\\\\\\\.[a-zA-Z0-9][a-zA-Z0-9\\\\\\\\-]{0,61}[a-zA-Z0-9])*$',
+        pattern: '^[a-zA-Z0-9][a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9](?:\\.[a-zA-Z0-9][a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9])*$',
       },
       active_only: {
         type: 'boolean' as const,
@@ -37,7 +37,7 @@ export class ListUsersTool extends BaseTool {
       username: {
         type: 'string' as const,
         description: 'Filter by username (partial match)',
-        pattern: '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\\\.[a-zA-Z]{2,}$',
+        pattern: '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$',
       },
       created_after: {
         type: 'string' as const,
@@ -179,7 +179,7 @@ export class GetUserTool extends BaseTool {
       username: {
         type: 'string' as const,
         description: 'Full username (email address) of the user to retrieve',
-        pattern: '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\\\.[a-zA-Z]{2,}$',
+        pattern: '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$',
       },
     },
     required: ['username'],
@@ -303,7 +303,7 @@ export class CreateUserTool extends BaseTool {
       domain: {
         type: 'string' as const,
         description: 'Domain for the user',
-        pattern: '^[a-zA-Z0-9][a-zA-Z0-9\\\\\\\\-]{0,61}[a-zA-Z0-9](?:\\\\\\\\.[a-zA-Z0-9][a-zA-Z0-9\\\\\\\\-]{0,61}[a-zA-Z0-9])*$',
+        pattern: '^[a-zA-Z0-9][a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9](?:\\.[a-zA-Z0-9][a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9])*$',
       },
       password: {
         type: 'string' as const,
@@ -438,7 +438,7 @@ export class UpdateUserTool extends BaseTool {
       username: {
         type: 'string' as const,
         description: 'Full username (email address) of the user to update',
-        pattern: '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\\\.[a-zA-Z]{2,}$',
+        pattern: '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$',
       },
       quota: {
         type: 'number' as const,
@@ -586,7 +586,7 @@ export class DeleteUserTool extends BaseTool {
       username: {
         type: 'string' as const,
         description: 'Full username (email address) of the user to delete',
-        pattern: '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\\\.[a-zA-Z]{2,}$',
+        pattern: '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$',
       },
       confirm: {
         type: 'boolean' as const,
