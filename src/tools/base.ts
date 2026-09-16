@@ -104,7 +104,7 @@ export abstract class BaseTool implements Tool {
       return false;
     }
 
-    return requiredPermissions.every(permission => 
+    return requiredPermissions.some(permission => 
       context.permissions.includes(permission) ||
       context.permissions.includes('admin')
     );
