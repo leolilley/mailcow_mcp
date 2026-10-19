@@ -12,6 +12,9 @@ dotenv.config();
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
+import { HttpTransportHost } from './transport/http.js';
+import { MailcowOAuthProvider } from './auth/oauth-provider.js';
+import { ToolPolicy, scopeFor } from './tools/policy.js';
 
 // Import existing components
 import { configManager } from './config/index.js';
@@ -48,16 +51,9 @@ class MailcowMCPServer {
   private toolRegistry: ToolRegistry;
   private logger: Logger;
   private isInitialized = false;
+  private httpHost: HttpTransportHost | null = null;
 
   constructor() {
-    // Initialize MCP Server
-    this.server = new Server(
-      {
-        name: 'mailcow-mcp',
-        version: '0.1.0',
-      }
-    );
-
     // Initialize logger
     this.logger = new Logger(
       { level: 'info' },
@@ -68,8 +64,41 @@ class MailcowMCPServer {
     this.authManager = new AuthManager();
     this.toolRegistry = new ToolRegistry(this.logger);
 
-    // Set up MCP protocol handlers
-    this.setupProtocolHandlers();
+    // The protocol object for the stdio transport. The HTTP transport builds
+    // one per session through the same factory; see createMcpServer.
+    this.server = this.createMcpServer();
+  }
+
+  /**
+   * Build an MCP protocol object with this server's handlers installed.
+   *
+   * One of these per transport, because a `Server` can be connected exactly
+   * once: the second `connect()` throws `Already connected to a transport`.
+   * The HTTP transport therefore calls this per session.
+   *
+   * Only the protocol object is per-session. Everything behind the handlers
+   * (the tool registry, the API client, the configuration) is shared, which is
+   * what you want: separate conversations against the same mailcow.
+   */
+  private createMcpServer(): Server {
+    const server = new Server(
+      {
+        name: 'mailcow-mcp',
+        version: '0.1.0',
+      },
+      {
+        // Capabilities must be declared before the matching request handlers
+        // are installed. Older SDK versions did not enforce this, so the
+        // omission was silent; from 1.x `setRequestHandler` throws
+        // "Server does not support tools" at construction time.
+        capabilities: {
+          tools: {},
+        },
+      },
+    );
+
+    this.setupProtocolHandlers(server);
+    return server;
   }
 
   /**
@@ -119,6 +148,25 @@ class MailcowMCPServer {
         this.logger.warn('No API key provided - server will run in limited mode');
       }
 
+      // Apply the tool exposure policy before anything is registered.
+      //
+      // Which tools exist at all depends on how this server is reachable. Over
+      // stdio the only caller is the user who launched it; over HTTP the caller
+      // is a model that may have read untrusted content. The policy encodes
+      // that difference, so it must be in place before the first register().
+      const transport = config.transport;
+      const policy = new ToolPolicy({
+        remote: transport?.mode === 'http',
+        enableDestructive: transport?.tools?.enableDestructive ?? false,
+        enableCredential: transport?.tools?.enableCredential ?? false,
+        enableOutbound: transport?.tools?.enableOutbound ?? false,
+      });
+      this.toolRegistry.setPolicy(policy);
+      for (const warning of policy.warnings()) {
+        this.logger.warn(warning);
+      }
+      this.logger.info('Tool exposure policy applied', policy.describe());
+
       // Register available tools
       await this.registerTools();
 
@@ -134,9 +182,9 @@ class MailcowMCPServer {
   /**
    * Set up MCP protocol request handlers
    */
-  private setupProtocolHandlers(): void {
+  private setupProtocolHandlers(server: Server): void {
     // Handle tool listing
-    this.server.setRequestHandler(ListToolsRequestSchema, async () => {
+    server.setRequestHandler(ListToolsRequestSchema, async () => {
       const tools = this.toolRegistry.getToolSchemas();
       this.logger.debug(`Listing ${tools.length} available tools`);
       
@@ -150,13 +198,42 @@ class MailcowMCPServer {
     });
 
     // Handle tool execution
-    this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
+    server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
       const { name: toolName, arguments: toolArgs } = request.params;
-      
-      this.logger.info(`Executing tool: ${toolName}`, { 
+
+      this.logger.info(`Executing tool: ${toolName}`, {
         tool: toolName,
-        hasArgs: !!toolArgs 
+        hasArgs: !!toolArgs
       });
+
+      // Scope enforcement, for network callers only.
+      //
+      // `authInfo` is present when the request arrived over the HTTP transport,
+      // where it comes from the bearer token. Over stdio there is no token and
+      // no authInfo, and the caller is the user who launched the process.
+      //
+      // Without this the advertised scopes are decorative: they appear in the
+      // metadata document and in what the operator approves on the consent
+      // screen, and then nothing checks them at the point of use.
+      const authInfo = extra?.authInfo;
+      if (authInfo) {
+        const required = scopeFor(toolName);
+        if (!authInfo.scopes.includes(required)) {
+          this.logger.warn('Tool call rejected for insufficient scope', {
+            tool: toolName,
+            required,
+            granted: authInfo.scopes,
+            clientId: authInfo.clientId,
+          });
+          return {
+            content: [{
+              type: 'text',
+              text: `insufficient_scope: ${toolName} requires the ${required} scope.`,
+            }],
+            isError: true,
+          };
+        }
+      }
 
       try {
         // Create execution context
@@ -199,7 +276,7 @@ class MailcowMCPServer {
     });
 
     // Handle server shutdown
-    this.server.onerror = (error) => {
+    server.onerror = (error) => {
       this.logger.error('MCP Server error', error);
     };
   }
@@ -1082,20 +1159,95 @@ class MailcowMCPServer {
       // Initialize server components
       await this.initialize();
 
-      // Create transport and connect
-      const transport = new StdioServerTransport();
-      
       this.logger.info('Starting Mailcow MCP Server...');
-      
-      // Connect server to transport
-      await this.server.connect(transport);
-      
+
+      const transportConfig = configManager.getConfig().transport;
+
+      if (transportConfig?.mode === 'http') {
+        await this.startHttpTransport(transportConfig);
+      } else {
+        // Default. One client, one process, no network surface.
+        const transport = new StdioServerTransport();
+        await this.server.connect(transport);
+      }
+
       this.logger.info('Mailcow MCP Server started successfully');
-      
+
     } catch (error) {
       this.logger.error('Failed to start server', error as Error);
       process.exit(1);
     }
+  }
+
+  /**
+   * Start the Streamable HTTP transport.
+   *
+   * Separated from start() because remote serving has preconditions that stdio
+   * does not, and they are worth failing loudly on rather than starting a
+   * half-protected listener.
+   */
+  private async startHttpTransport(
+    transportConfig: NonNullable<ReturnType<typeof configManager.getConfig>['transport']>,
+  ): Promise<void> {
+    const { host, port, publicUrl, oauthPassword, trustProxy } = transportConfig.http;
+
+    if (!oauthPassword) {
+      throw new Error(
+        'MCP_TRANSPORT=http requires MCP_OAUTH_PASSWORD. Refusing to start a ' +
+          'network-reachable mail administration endpoint with no authentication.',
+      );
+    }
+
+    if (!publicUrl) {
+      throw new Error(
+        'MCP_TRANSPORT=http requires MCP_PUBLIC_URL: the public https origin ' +
+          'clients reach this server at, for example https://mcp.example.com. ' +
+          'OAuth redirect URIs and both discovery documents are built from it, ' +
+          'so there is no safe default to fall back to.',
+      );
+    }
+
+    let parsedPublicUrl: URL;
+    try {
+      parsedPublicUrl = new URL(publicUrl);
+    } catch {
+      throw new Error(`MCP_PUBLIC_URL is not a valid URL: ${publicUrl}`);
+    }
+
+    // This is a hard requirement, not advice. The SDK's issuer check rejects
+    // any non-https issuer that is not localhost or 127.0.0.1, so a value like
+    // http://0.0.0.0:3000 does not "work behind a proxy": the router throws
+    // during construction and the process exits. Failing here instead names
+    // the variable and the rule.
+    const isLocal =
+      parsedPublicUrl.hostname === 'localhost' || parsedPublicUrl.hostname === '127.0.0.1';
+    if (parsedPublicUrl.protocol !== 'https:' && !isLocal) {
+      throw new Error(
+        `MCP_PUBLIC_URL must use https for a non-local host; got ${publicUrl}. ` +
+          'Terminate TLS on a reverse proxy and set this to the public https origin.',
+      );
+    }
+
+    // The provider reports revoked grants so the transport can close any MCP
+    // session opened under them. Without it, revoking a token leaves the
+    // session resident and an event stream opened beforehand keeps being
+    // served, because bearer auth is checked per request, not per message.
+    const provider = new MailcowOAuthProvider({
+      operatorPassword: oauthPassword,
+      issuerUrl: parsedPublicUrl,
+      onGrantRevoked: (grantId) => this.httpHost?.closeSessionsForGrant(grantId),
+    });
+
+    this.httpHost = new HttpTransportHost(() => this.createMcpServer(), {
+      host,
+      port,
+      publicUrl: parsedPublicUrl,
+      provider,
+      logger: this.logger,
+      trustProxy,
+    });
+
+    await this.httpHost.start();
   }
 
   /**
@@ -1104,7 +1256,12 @@ class MailcowMCPServer {
   async stop(): Promise<void> {
     try {
       this.logger.info('Stopping Mailcow MCP Server...');
-      
+
+      if (this.httpHost) {
+        await this.httpHost.stop();
+        this.httpHost = null;
+      }
+
       // Close server connection
       if (this.server) {
         await this.server.close();

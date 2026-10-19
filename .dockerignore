@@ -1,0 +1,45 @@
+# A host-installed node_modules would be copied over the image's own npm ci
+# output and may carry platform-specific binaries from a different OS, so it is
+# the single most important exclusion here.
+node_modules
+
+# Stale host build output must not shadow what the build stage compiles.
+dist
+coverage
+
+# Keeps secrets out of the build context entirely: anything sent to the daemon
+# can end up in an image layer or a cached mount.
+.env
+.env.*
+
+.git
+.gitignore
+.gitattributes
+.github
+
+# tsconfig.json includes tests/**/*, so withholding tests/ here is also what
+# keeps compiled test output out of dist/ in the build stage.
+tests
+jest.config.js
+
+docs
+*.md
+
+# Tooling and local config with no role inside the image.
+.eslintrc.js
+.prettierrc
+scripts
+.vscode
+.idea
+.editorconfig
+
+# Container plumbing itself is never needed inside the image.
+Dockerfile
+.dockerignore
+docker-compose.yml
+docker-compose.*.yml
+
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db

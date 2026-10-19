@@ -1,0 +1,111 @@
+# Deploy:  docker compose up -d --build
+#
+# The project name is set explicitly so this stack can never be confused with,
+# adopted by, or pruned alongside mailcow's own "mailcowdockerized" project that
+# runs on the same VM.
+name: mailcow-mcp
+
+services:
+  mailcow-mcp:
+    container_name: mailcow-mcp
+    build:
+      context: .
+    image: mailcow-mcp:local
+    restart: unless-stopped
+
+    # Secrets (MAILCOW_API_KEY, MCP_OAUTH_PASSWORD) live only in .env, which is
+    # excluded from the build context and from git. Nothing sensitive belongs in
+    # this file, which is meant to be readable and committable.
+    #
+    # Expected keys: MAILCOW_API_URL, MAILCOW_API_KEY, MAILCOW_API_ACCESS_TYPE,
+    # MAILCOW_VERIFY_SSL, MCP_PUBLIC_URL, MCP_OAUTH_PASSWORD, MCP_TRUST_PROXY,
+    # MCP_ENABLE_DESTRUCTIVE_TOOLS, MCP_ENABLE_CREDENTIAL_TOOLS,
+    # MCP_ENABLE_OUTBOUND_TOOLS.
+    #
+    # MCP_PUBLIC_URL is required and has no default. Without it the server
+    # refuses to start, and under the restart policy below that is a crash
+    # loop rather than a one-off failure.
+    env_file:
+      - .env
+
+    environment:
+      # Declared here rather than left to .env because compose's `environment`
+      # wins over `env_file`: a leftover MCP_HTTP_HOST=127.0.0.1 in someone's
+      # .env would otherwise bind the listener to the container's own loopback,
+      # where the published port can never reach it, and the container would
+      # come up healthy-looking but unreachable.
+      MCP_TRANSPORT: http
+      MCP_HTTP_HOST: 0.0.0.0
+      MCP_HTTP_PORT: "3000"
+
+    ports:
+      # Loopback of the host only. TLS terminates on a separate proxy host, which
+      # must arrive over a tunnel or private link that lands on this VM's
+      # 127.0.0.1 (SSH forward, WireGuard, or similar) -- a bare 0.0.0.0 publish
+      # here would put an OAuth-guarded mail-administration API straight on the
+      # internet, ahead of the proxy that is supposed to front it.
+      - "127.0.0.1:3000:3000"
+
+    # No Docker socket, and none should be added. mailcow's own dockerapi
+    # container mounts /var/run/docker.sock, so this file is a likely place for
+    # someone to copy that pattern across; doing so would hand a network-reachable
+    # HTTP service the equivalent of root on the whole VM, because anything that
+    # can talk to the socket can start a privileged container. This service only
+    # ever needs the mailcow REST API.
+
+    # Nothing in the application writes to disk: the only file-logging code path
+    # (FileLogDestination) is never constructed -- src/index.ts always uses
+    # ConsoleLogDestination -- so the root filesystem can stay immutable. Note
+    # that src/config/defaults.ts still declares logging.destination "file" with
+    # filePath /var/log/mailcow-mcp.log for the production profile; if that dead
+    # config is ever wired up, it will fail against a read-only root and the fix
+    # is a dedicated volume for it, not dropping this setting.
+    read_only: true
+    tmpfs:
+      # Scratch space for anything in node or its dependencies that expects a
+      # writable /tmp. noexec/nosuid so it cannot be used to stage a payload.
+      - /tmp:mode=1777,size=32m,noexec,nosuid,nodev
+
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+    # Caps the blast radius of a leak or a runaway request loop so this cannot
+    # starve the mailcow containers sharing the VM. Compose v2 applies these
+    # limits without swarm mode.
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "1.0"
+        reservations:
+          memory: 128M
+    pids_limit: 256
+
+    # The app handles SIGTERM and closes its listener; dumb-init is already PID 1
+    # inside the image, so compose's `init: true` would only add a second
+    # supervisor. This grace period just gives in-flight requests time to drain.
+    stop_grace_period: 20s
+
+    # Container logs are the only record of tool invocations against the mail
+    # platform, and this VM also hosts mailcow, so rotation is bounded here
+    # rather than left to the daemon default.
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+    # Optional: attach to mailcow's own network so MAILCOW_API_URL can target the
+    # internal nginx/php container name instead of the public hostname, avoiding a
+    # hairpin out through the public interface and back. Disabled by default --
+    # it widens this container's reachability into mailcow's internal network, so
+    # enable it deliberately, together with changing MAILCOW_API_URL in .env.
+    # networks:
+    #   - mailcow-network
+
+# networks:
+#   mailcow-network:
+#     external: true
+#     name: mailcowdockerized_mailcow-network

@@ -26,6 +26,7 @@ import { MCPErrorCode } from '../types';
 import { Logger } from '../utils';
 import { ToolValidationError, ToolExecutionError, ToolPermissionError } from './errors';
 import { validateToolInput, validateToolSchema } from './validation';
+import { ToolPolicy } from './policy';
 
 /**
  * Tool Registry Implementation
@@ -39,19 +40,58 @@ export class ToolRegistry implements IToolRegistry {
   private cache: ToolCache;
   private monitoring: ToolMonitoring;
   private logger: Logger;
+  private policy?: ToolPolicy;
+  /** Tools the policy withheld, so their handlers are skipped silently too. */
+  private suppressed = new Set<string>();
 
-  constructor(logger: Logger, cache?: ToolCache, monitoring?: ToolMonitoring) {
+  constructor(logger: Logger, cache?: ToolCache, monitoring?: ToolMonitoring, policy?: ToolPolicy) {
     this.logger = logger;
     this.cache = cache || new MapToolCache();
     this.monitoring = monitoring || new MapToolMonitoring();
+    this.policy = policy;
+  }
+
+  /**
+   * Apply an exposure policy.
+   *
+   * Set after configuration is loaded and before any tool is registered. The
+   * policy depends on the transport and on operator opt-ins, neither of which
+   * is known when the registry is constructed.
+   */
+  setPolicy(policy: ToolPolicy): void {
+    // A new policy supersedes the previous one's decisions. Without clearing
+    // this, a tool withheld under the old policy and then registered under a
+    // more permissive one would enter `tools` (and so `tools/list`) while
+    // registerHandler kept returning early, leaving a listed tool whose call
+    // fails with "not found".
+    this.suppressed.clear();
+    this.policy = policy;
   }
 
   /**
    * Register a tool with the registry
+   *
+   * When an exposure policy is configured and denies this tool, registration is
+   * skipped rather than refused at call time. A tool that is never registered
+   * does not appear in `tools/list`, so a model cannot see it, cannot be talked
+   * into calling it, and cannot tell a user it was blocked.
    */
   register(tool: Tool): void {
     if (!isTool(tool)) {
       throw new ToolValidationError('registry', [{ field: '', message: 'Invalid tool object provided', code: 'INVALID_TOOL' }]);
+    }
+
+    if (this.policy) {
+      const decision = this.policy.evaluate(tool.name);
+      if (!decision.allowed) {
+        this.suppressed.add(tool.name);
+        this.logger.info(`Tool withheld by policy: ${tool.name}`, {
+          tool: tool.name,
+          tier: decision.tier,
+          reason: decision.reason,
+        });
+        return;
+      }
     }
 
     if (this.tools.has(tool.name)) {
@@ -72,6 +112,13 @@ export class ToolRegistry implements IToolRegistry {
    * Register a tool handler
    */
   registerHandler(toolName: string, handler: ToolHandler, metadata?: Partial<ToolMetadata>): void {
+    // A tool withheld by policy was never registered, so its handler is a
+    // no-op rather than an error. Callers register a tool and its handler as a
+    // pair; failing here would make every registrar policy-aware.
+    if (this.suppressed.has(toolName)) {
+      return;
+    }
+
     if (!this.tools.has(toolName)) {
       throw new ToolValidationError('registry', [{ field: '', message: `Tool ${toolName} not found in registry`, code: 'TOOL_NOT_FOUND' }]);
     }

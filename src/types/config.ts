@@ -9,6 +9,56 @@ export interface MailcowConfig {
   auth: AuthConfig;
   server: ServerConfig;
   logging: LoggingConfig;
+  /**
+   * Transport and tool-exposure settings.
+   *
+   * Optional so that existing configurations keep working unchanged: when it is
+   * absent the server behaves exactly as it did before — stdio transport, no
+   * HTTP listener, destructive tools disabled.
+   */
+  transport?: TransportConfig;
+}
+
+// Transport Configuration
+export interface TransportConfig {
+  /**
+   * `stdio` launches as a child process of a local client (Claude Desktop,
+   * Claude Code). `http` serves Streamable HTTP for remote clients that
+   * connect over the network (Claude web, ChatGPT).
+   */
+  mode: TransportMode;
+  http: HttpTransportConfig;
+  tools: ToolExposureConfig;
+}
+
+export type TransportMode = 'stdio' | 'http';
+
+export interface HttpTransportConfig {
+  /** Interface to bind. Keep on loopback and put a TLS proxy in front. */
+  host: string;
+  port: number;
+  /** Public origin clients reach this server at, including any path prefix. */
+  publicUrl: string;
+  /** Operator password for the OAuth consent screen. No default, by design. */
+  oauthPassword: string;
+  /** Honour X-Forwarded-* headers. Only enable behind a known proxy. */
+  trustProxy: boolean;
+}
+
+export interface ToolExposureConfig {
+  /**
+   * Register tools that permanently destroy data or silently break mail flow.
+   * Off by default; see src/tools/policy.ts for the list and the reasoning.
+   */
+  enableDestructive: boolean;
+  /**
+   * Register tools that set or accept a credential — mailbox passwords, sync
+   * job credentials. These destroy nothing but mint or take over an identity
+   * that can then authenticate to the mail system directly. Off by default.
+   */
+  enableCredential: boolean;
+  /** Register tools that can send mail as your domains. Off by default. */
+  enableOutbound: boolean;
 }
 
 // API Configuration
